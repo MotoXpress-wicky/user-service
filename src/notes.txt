@@ -1,0 +1,133 @@
+1. Frontend Button Click
+   └─► User browser navigates to:
+       http://localhost:8080/oauth2/authorization/google (Backend)
+
+2. Backend sends user to Google consent screen
+
+3. User signs in on Google
+   └─► Google redirects browser back to:
+       http://localhost:8080/login/oauth2/code/google (Backend - for verification)
+
+
+
+
+
+
+
+{
+  message: "Request failed with status code 500",
+  code: "ERR_BAD_RESPONSE",
+  response: {
+    status: 500,
+    statusText: "Internal Server Error",
+    headers: { ... },
+    data: {
+      status: 500,
+      message: "Something went wrong. Please try again later.",
+      path: "/api/login",
+      errors: []
+    }
+  },
+  request: { ... },
+  config: { ... }
+}
+
+
+SPRING ROUE to default authentication enrypoint when JWT is invalid
+
+JWT expires/invalid
+    ↓
+JwtAuthenticationFilter doesn't set authentication
+    ↓
+Spring Security sees: unauthenticated request
+    ↓
+Calls default AuthenticationEntryPoint
+    ↓
+oauth2Login() redirects to Google signin ❌
+
+
+
+
+
+
+
+
+
+
+
+### 401 Unauthorized situations
+
+1. **No JWT/token** when accessing a **protected endpoint**.
+2. **Expired JWT**.
+3. **Invalid JWT** — bad signature, malformed token, etc.
+
+
+### NOT 401
+
+* Valid JWT but insufficient role/authority → **403 Forbidden**.
+
+
+
+**1. `POST /api/auth/forgot-password` (Requesting the Reset)**
+
+**Input:** User's `email` address.
+
+* **Step 1: Immediate Generic Response:** Instantly return an HTTP 200 Success status and a generic message (e.g., *"If an account with that email exists, we have sent a password reset link"*).
+* **Step 2: Hand-off to Background:** Pass the actual database lookup and email sending to an asynchronous background thread so the response time doesn't leak whether the email is real.
+* **Step 3: Database Lookup:** (In the background) Check if the provided email exists in the database.
+* **Step 4: Silent Abort:** If the email does **not** exist, do nothing and stop the process entirely.
+* **Step 5: Invalidate Old Tokens:** If the email **does** exist, find and delete (or mark invalid) any existing unused reset tokens for this user so only the newest one will work.
+* **Step 6: Generate Token:** Generate a cryptographically secure, random 256-bit string.
+* **Step 7: Hash & Store:** Run that raw string through SHA-256. Store only this hashed version in your `password_reset_tokens` database table, linked to the user, with an expiration time set to 15-30 minutes from now.
+* **Step 8: Send Email:** Send the actual email containing a frontend link with the **raw** token attached (e.g., `[https://yourapp.com/reset-password?token=RAW_TOKEN_HERE](https://yourapp.com/reset-password?token=RAW_TOKEN_HERE)`).
+
+---
+
+**2. `POST /api/auth/reset-password` (Submitting the New Password)**
+
+**Input:** The raw `token` (from the URL) and the `newPassword`.
+
+* **Step 1: Hash the Incoming Token:** Take the raw `token` provided in the request and run it through SHA-256 so you can compare it against your database.
+* **Step 2: Database Lookup:** Search the `password_reset_tokens` table for that exact hash.
+* **Step 3: Validation Checks:**
+* If the token hash is **not found** $\rightarrow$ Return error ("Invalid or expired token").
+* If the token is **expired** (current time > expiration time) $\rightarrow$ Return error.
+* If the token is already **marked as used** $\rightarrow$ Return error.
+
+
+* **Step 4: Update Password:** If all checks pass, take the `newPassword`, hash it using BCrypt, and update the user's password record in the database.
+* **Step 5: Burn the Token:** Mark the current reset token as "used" (or delete it) so it can never be used again. Delete any other outstanding tokens for this user.
+* **Step 6: Invalidate Sessions:** Log the user out of all existing devices. (If using stateless JWTs, this usually means incrementing a `tokenVersion` or `securityStamp` on the user record so all old JWTs are rejected).
+* **Step 7: Send Notification:** Trigger a background task to send a "Your password was just changed" security email to the user.
+* **Step 8: Success Response:** Return a 200 OK message to the frontend instructing the user to log in with their new password.
+
+
+
+
+
+@Test, @BeforeEach, @ExtendWith	org.junit.jupiter.api	JUnit 5
+@WebMvcTest, @DataJpaTest, @SpringBootTest	org.springframework.boot.test.autoconfigure...	Spring Boot Test
+MockMvc, get(), post(), status(), jsonPath()	org.springframework.test.web.servlet	Spring Test (spring-test)
+@MockitoBean	org.springframework.test.context.bean.override.mockito	Spring Test
+@Mock, when(), verify(), MockitoExtension	org.mockito	Mockito
+assertThat(...)	org.assertj.core.api	AssertJ
+
+
+
+
+
+
+clean lifecycle     →  pre-clean, clean, post-clean
+default lifecycle   →  validate ... deploy      ← the real build
+site lifecycle      →  site, site-deploy        ← docs, ignore it
+
+
+#	Phase	What happens	Your project
+1	validate	Is pom.xml valid? Are dependencies resolvable?	Catches a typo'd artifactId
+2	compile	src/main/java → target/classes	Your controllers, services, entities
+3	test-compile	src/test/java → target/test-classes	AuthServiceTest etc. compile here
+4	test	Surefire runs unit tests	Your 6 test classes run
+5	package	Bundle into a jar	target/user-service-0.0.1-SNAPSHOT.jar
+6	verify	Failsafe runs integration tests	*IT.java would run here
+7	install	Copy jar to ~/.m2/repository (local repository of the computer)	so other projects in the computer can use it as dependency
+8	deploy	Upload to a remote repo	Nexus, Artifactory — team stuff

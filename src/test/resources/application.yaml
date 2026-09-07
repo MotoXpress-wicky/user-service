@@ -1,0 +1,102 @@
+# Test-only configuration.
+#
+# The filename matters. Your main config is src/main/resources/application.yaml,
+# so this file must be application.yaml too - same name, same extension - for it
+# to shadow the real one during the test run. Name it application.yml and Spring
+# would load BOTH, your main file would still try to resolve ${GOOGLE_CLIENT_ID}
+# and friends, and the context would fail to start on any machine without those
+# environment variables set.
+#
+# Every value below is fake and safe to commit.
+
+spring:
+  application:
+    name: user-service
+
+  # In-memory rather than the file-backed H2 your main config uses, so tests
+  # never touch ./db/user-service and never leak state between runs.
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  h2:
+    console:
+      enabled: false
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+
+  # EmailService is mocked in every test here, so nothing is ever sent. These
+  # values exist purely so the mail auto-configuration can start.
+  mail:
+    host: localhost
+    port: 3025
+    username: test
+    password: test
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            clientId: test-client-id
+            clientSecret: test-client-secret
+            scope:
+              - openid
+              - email
+              - profile
+            redirectUri: "{baseUrl}/login/oauth2/code/{registrationId}"
+
+auth:
+  token:
+    # HMAC-SHA256 needs at least 32 bytes of key material. Obviously fake.
+    secret: 0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF
+    ttl-minutes: 15
+  cookie:
+    name: access_token
+    path: /
+    ttl-minutes: 15
+    secure: false          # false so MockMvc and any local run behave over plain http
+    same-site: Lax
+
+refresh:
+  token:
+    ttl-minutes: 20160     # 14 days
+  cookie:
+    name: refresh_token
+    path: /api/auth
+    ttl-minutes: 20160
+    secure: false
+    same-site: Lax
+
+frontend:
+  failure-redirect-url: "http://localhost:8081/login"
+  success-redirect-url: "http://localhost:8081/"
+
+cors:
+  allowed-origins: "http://localhost:8081"
+
+app:
+  mail:
+    from-name: "MotoXpress"
+  frontend:
+    reset-password-url: "http://localhost:8081/reset-password"
+  password-reset:
+    token-ttl-minutes: 30
+    resend-cooldown-seconds: 60
+
+logging:
+  level:
+    org.springframework.web: WARN
+    org.hibernate: WARN
