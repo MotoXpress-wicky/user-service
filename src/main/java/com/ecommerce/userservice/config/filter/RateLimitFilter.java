@@ -10,6 +10,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.jspecify.annotations.NullMarked;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -41,6 +42,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final RateLimitProperties properties;
     private final ObjectMapper objectMapper;
 
+
+    @Autowired
     public RateLimitFilter(RateLimitService rateLimitService,
                            RateLimitProperties properties,
                            ObjectMapper objectMapper) {
@@ -49,6 +52,23 @@ public class RateLimitFilter extends OncePerRequestFilter {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * shouldNotFilter comes from OncePerRequestFilter. Spring calls it first.
+     * Return true and doFilterInternal never runs — the request goes straight to the next filter.
+     * <p>
+     * Your line returns true in two cases:
+     * <p>
+     * "OPTIONS".equalsIgnoreCase(request.getMethod())
+     * <p>
+     * OPTIONS is the CORS preflight. Before a real cross-origin POST, the browser sends an OPTIONS request asking
+     * permission. So one login from your React app is actually two HTTP requests:
+     * <p>
+     * OPTIONS /api/auth/login    ← browser asking permission
+     * POST    /api/auth/login    ← the real one
+     * <p>
+     * Without this check, each login would consume two tokens instead of one, silently halving every limit you configured.
+     *
+     **/
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         return "OPTIONS".equalsIgnoreCase(request.getMethod()) || ruleFor(request) == null;
@@ -61,13 +81,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
         try {
             rateLimitService.check(ruleFor(request), clientIp(request));
         } catch (RateLimitExceededException e) {
-            writeTooManyRequests(request, response, e);
+            sendRateLimitErrorResponse(request, response, e);
             return;
         }
 
         filterChain.doFilter(request, response);
     }
 
+    /**
+     * Helper method to get the rate limit RULE for a given request.
+     *
+     **/
     private RateLimitRule ruleFor(HttpServletRequest request) {
         String uri = request.getRequestURI();
         return switch (request.getMethod()) {
@@ -77,6 +101,10 @@ public class RateLimitFilter extends OncePerRequestFilter {
         };
     }
 
+    /**
+     * Helper method to get the CLIENT IP address.
+     *
+     **/
     private String clientIp(HttpServletRequest request) {
         if (properties.isTrustProxyHeaders()) {
             String forwarded = request.getHeader("X-Forwarded-For");
@@ -92,9 +120,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
         return remote != null ? remote : "unknown";
     }
 
-    private void writeTooManyRequests(HttpServletRequest request,
-                                      HttpServletResponse response,
-                                      RateLimitExceededException e) throws IOException {
+
+    /**
+     * use to send rate limit error response.
+     *
+     **/
+    private void sendRateLimitErrorResponse(HttpServletRequest request,
+                                            HttpServletResponse response,
+                                            RateLimitExceededException e) throws IOException {
 
         ErrorResponse body = new ErrorResponse(
                 Instant.now(),

@@ -2,7 +2,7 @@ package com.ecommerce.userservice.config.ratelimit;
 
 import io.github.bucket4j.distributed.ExpirationAfterWriteStrategy;
 import io.github.bucket4j.distributed.proxy.ProxyManager;
-import io.github.bucket4j.redis.lettuce.cas.LettuceBasedProxyManager;
+import io.github.bucket4j.redis.lettuce.Bucket4jLettuce;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.api.StatefulRedisConnection;
@@ -27,6 +27,10 @@ public class RateLimitConfig {
         this.properties = properties;
     }
 
+    /**
+     * create the redis client
+     *
+     **/
     @Bean(destroyMethod = "shutdown")
     public RedisClient rateLimitRedisClient() {
         RateLimitProperties.Redis redis = properties.getRedis();
@@ -35,7 +39,7 @@ public class RateLimitConfig {
                 .withHost(redis.getHost())
                 .withPort(redis.getPort())
                 .withSsl(redis.isSsl())
-                .withTimeout(redis.getTimeout());
+                .withTimeout(redis.getTimeout()); //How long the application will wait for Redis to respond before giving up.
 
         if (redis.getPassword() != null && !redis.getPassword().isBlank()) {
             uri.withPassword(redis.getPassword().toCharArray());
@@ -46,16 +50,22 @@ public class RateLimitConfig {
         return RedisClient.create(uri.build());
     }
 
+    /**
+     * Create the connection to redis
+     */
     @Bean(destroyMethod = "close")
     public StatefulRedisConnection<String, byte[]> rateLimitRedisConnection(RedisClient client) {
         return client.connect(RedisCodec.of(StringCodec.UTF8, ByteArrayCodec.INSTANCE));
     }
 
+    /**
+     * Give proxy server to interact with the buckets inside redis
+     *
+     **/
     @Bean
     public ProxyManager<String> rateLimitProxyManager(StatefulRedisConnection<String, byte[]> connection) {
-        return LettuceBasedProxyManager.builderFor(connection)
-                .withExpirationStrategy(
-                        ExpirationAfterWriteStrategy.basedOnTimeForRefillingBucketUpToMax(Duration.ofMinutes(5)))
+        return Bucket4jLettuce.casBasedBuilder(connection)
+                .expirationAfterWrite(ExpirationAfterWriteStrategy.basedOnTimeForRefillingBucketUpToMax(Duration.ofSeconds(10)))
                 .build();
     }
 }

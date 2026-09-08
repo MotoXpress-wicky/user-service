@@ -13,12 +13,29 @@ import java.util.Map;
 @ConfigurationProperties(prefix = "rate-limit")
 public class RateLimitProperties {
 
+    /**
+     * This section populate with propertise from application.yaml. Because this class is annotated with
+     *
+     * @ConfigurationProperties(prefix = "rate-limit")
+     * (prefix = "rate-limit") here prefix is the prefix of the property in application.yaml. i.e. rate-limit.enabled
+     *
+     **/
     private boolean enabled = true;
     private boolean failOpen = false;
     private boolean trustProxyHeaders = false;
-    private Redis redis = new Redis();
+    private Redis redis = new Redis(); // Mirroring the Redis class below
     private Map<RateLimitRule, Limit> rules = new HashMap<>();
 
+
+    /**
+     * What static means here
+     * <p>
+     * Without static, a nested class secretly holds a reference to the outer object. You could not create one on its own:
+     * Redis r = new Redis();                        // compile error
+     * Redis r = outerObject.new Redis();            // required — awkward
+     * With static, it is an independent class that just happens to live inside another file:
+     * Redis r = new Redis();                        // works
+     **/
     @Getter
     @Setter
     public static class Redis {
@@ -29,6 +46,15 @@ public class RateLimitProperties {
         private Duration timeout = Duration.ofSeconds(2);
     }
 
+    /**
+     * A Data-structure to hold the limit for a given rule.
+     * capacity: the number of requests allowed in the given period
+     * period: the time period in which the limit applies
+     * <p>
+     * record data-structure has implicit constructor. Also we can check the validity of the data before setting
+     * value to attributes.
+     *
+     **/
     public record Limit(long capacity, Duration period) {
         public Limit {
             if (capacity <= 0) {
@@ -40,6 +66,10 @@ public class RateLimitProperties {
         }
     }
 
+    /**
+     * Helper method to get the limit for a give rule.
+     *
+     **/
     public Limit require(RateLimitRule rule) {
         Limit limit = rules.get(rule);
         if (limit == null) {

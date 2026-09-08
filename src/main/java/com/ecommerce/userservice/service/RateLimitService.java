@@ -31,15 +31,33 @@ public class RateLimitService {
         this.proxyManagerProvider = proxyManagerProvider;
     }
 
+    /**
+     * Here parameter: key means what is use to rate limit.
+     * Our case it is email or ip address. It can be anything, user_id,username etc.
+     ***/
     public void check(RateLimitRule rule, String key) {
         if (!properties.isEnabled()) {
             return;
         }
 
-        String bucketKey = buildKey(rule, key);
+        String bucketKey = buildRedisKey(rule, key);
 
         try {
-            ConsumptionProbe probe = bucket(rule, bucketKey).tryConsumeAndReturnRemaining(1);
+            /*
+             * This is the line that talks to Redis. Split it in two:
+             *
+             * getBucket(...) gives you a handle. No network yet.
+             * .tryConsumeAndReturnRemaining(1) sends the Lua script to Redis. Redis runs it atomically and answers
+             * The method name says exactly what it does:
+             * - try — attempt it, do not throw if it fails
+             * - Consume — take 1 token
+             * - AndReturnRemaining — also tell me the state afterwards
+             * The answer comes back as a ConsumptionProbe — a small object holding what Redis reported
+             * probe.isConsumed()              // true = you got a token
+             * probe.getRemainingTokens()      // how many are left
+             * probe.getNanosToWaitForRefill() // if refused: how long until one is available
+             */
+            ConsumptionProbe probe = getBucket(rule, bucketKey).tryConsumeAndReturnRemaining(1);
 
             if (probe.isConsumed()) {
                 return;
@@ -63,18 +81,25 @@ public class RateLimitService {
         }
     }
 
+    /**
+     * Here parameter: key means what is use to rate limit.
+     * Our case it is email or ip address. It can be anything, user_id,username etc.
+     ***/
     public void refund(RateLimitRule rule, String key) {
         if (!properties.isEnabled()) {
             return;
         }
         try {
-            bucket(rule, buildKey(rule, key)).addTokens(1);
+            getBucket(rule, buildRedisKey(rule, key)).addTokens(1);
         } catch (Exception e) {
             log.warn("Could not refund a token for {}", rule, e);
         }
     }
 
-    private Bucket bucket(RateLimitRule rule, String bucketKey) {
+    /**
+     *
+     **/
+    private Bucket getBucket(RateLimitRule rule, String bucketKey) {
         ProxyManager<String> proxyManager = proxyManagerProvider.getIfAvailable();
         if (proxyManager == null) {
             throw new IllegalStateException("Rate limiting is enabled but Redis is not configured");
@@ -82,19 +107,44 @@ public class RateLimitService {
 
         RateLimitProperties.Limit limit = properties.require(rule);
 
+
+        /**
+         *     Describe the bucket's shape to Bucket4j:
+         *
+         *     capacity(5) — holds 5 tokens maximum
+         *     refillGreedy(5, 15m) — adds 5 tokens back over 15 minutes, smoothly
+         *
+         *     This is only a description. No bucket exists yet, and nothing has touched Redis.
+         * **/
         BucketConfiguration configuration = BucketConfiguration.builder()
                 .addLimit(bandwidth -> bandwidth
                         .capacity(limit.capacity())
                         .refillGreedy(limit.capacity(), limit.period()))
                 .build();
 
+
+        /**
+         * Get the bucket for this key. Two things happen:
+         *
+         * If Redis already has rl:login:email:c72d..., you get a handle to it
+         * If not, Redis creates it with the configuration above
+         *
+         * Still no network call. The returned object is a handle. Redis is contacted when check() calls tryConsumeAndReturnRemaining(1) on it.
+         * **/
         return proxyManager.builder().build(bucketKey, () -> configuration);
     }
 
-    private String buildKey(RateLimitRule rule, String key) {
+    /**
+     * helper function use to build the redis key (redis buket key) for a given rule and key.
+     * Here parameter: key means IP or Email address.
+     * rl: means prefix for all reate limit keys.
+     *
+     **/
+    private String buildRedisKey(RateLimitRule rule, String key) {
         String normalised = key == null ? "unknown" : key.trim().toLowerCase(Locale.ROOT);
         return "rl:" + rule.getKeyPrefix() + ":" + sha256(normalised);
     }
+
 
     private String sha256(String value) {
         try {
