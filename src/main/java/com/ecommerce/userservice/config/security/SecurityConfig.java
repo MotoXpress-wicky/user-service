@@ -1,6 +1,7 @@
 package com.ecommerce.userservice.config.security;
 
-
+import com.ecommerce.userservice.config.filter.RateLimitFilter;
+import org.springframework.web.filter.CorsFilter;
 import com.ecommerce.userservice.config.handler.ApiAuthenticationEntryPoint;
 import com.ecommerce.userservice.config.handler.GoogleOidcAuthenticationFailureHandler;
 import com.ecommerce.userservice.config.handler.GoogleOidcAuthenticationSuccessHandler;
@@ -27,18 +28,21 @@ public class SecurityConfig {
     private final GoogleOidcAuthenticationSuccessHandler googleOidcAuthenticationSuccessHandler;
     private final GoogleOidcAuthenticationFailureHandler googleOidcAuthenticationFailureHandler;
     private final ApiAuthenticationEntryPoint apiAuthenticationEntryPoint;
+    private final RateLimitFilter rateLimitFilter;
 
     @Autowired
     public SecurityConfig(
             JwtAuthenticationFilter jwtAuthenticationFilter,
             GoogleOidcAuthenticationSuccessHandler googleOidcAuthenticationSuccessHandler,
             GoogleOidcAuthenticationFailureHandler googleOidcAuthenticationFailureHandler,
-            ApiAuthenticationEntryPoint apiAuthenticationEntryPoint) {
+            ApiAuthenticationEntryPoint apiAuthenticationEntryPoint,
+            RateLimitFilter rateLimitFilter) {
 
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.googleOidcAuthenticationSuccessHandler = googleOidcAuthenticationSuccessHandler;
         this.googleOidcAuthenticationFailureHandler = googleOidcAuthenticationFailureHandler;
         this.apiAuthenticationEntryPoint = apiAuthenticationEntryPoint;
+        this.rateLimitFilter = rateLimitFilter;
     }
 
 
@@ -84,6 +88,7 @@ public class SecurityConfig {
                                 request -> request.getRequestURI().startsWith("/api/")
                         )
                 )
+                .addFilterAfter(rateLimitFilter, CorsFilter.class)
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .oauth2Login(oauth2 -> oauth2
                         .successHandler(googleOidcAuthenticationSuccessHandler)

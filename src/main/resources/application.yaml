@@ -1,26 +1,6 @@
 spring:
   application:
     name: user-service
-
-
-
-  #  datasource:
-  #    url: jdbc:h2:file:./db/user-service
-  #    driver-class-name: org.h2.Driver
-  #    username: sa
-  #    password: ""
-  #
-  #  h2:
-  #    console:
-  #      enabled: true
-  #      path: /h2-console
-  #
-  #  jpa:
-  #    database-platform: org.hibernate.dialect.H2Dialect
-  #    hibernate:
-  #      ddl-auto: update
-
-
   datasource:
     url: ${DB_URL}
     username: ${POSTGRES_USER}
@@ -35,6 +15,8 @@ spring:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
       password: ${REDIS_PASSWORD}
+      ssl:
+        enabled: false # TODO: change to true in production
 
   mail:
     host: smtp.gmail.com
@@ -104,3 +86,36 @@ app:
   password-reset:
     token-ttl-minutes: 30
     resend-cooldown-seconds: 60
+
+rate-limit:
+  enabled: true
+
+  # Leave false while you run directly on localhost. Turn on ONLY once you are
+  # behind nginx or Azure Application Gateway. Trusting X-Forwarded-For on a
+  # directly-exposed server lets anyone fake a new IP per request and bypass
+  # every limit below.
+  trust-proxy-headers: false # TODO: change to true in production
+
+  rules:
+    # Blanket net. No real user comes close.
+    global-ip: { capacity: 300, period: 1m }
+
+    # Brute force: one account, many passwords.
+    login-email: { capacity: 5,   period: 15m }
+
+    # Credential stuffing: many accounts, one password each.
+    # Generous because an office or campus shares one IP. A successful login
+    # refunds its token, so this counts failures, not attempts.
+    login-ip: { capacity: 30,  period: 15m }
+
+    register-ip: { capacity: 5,   period: 1h }
+
+    # Protects the victim's inbox from email bombing.
+    forgot-email: { capacity: 3,   period: 1h }
+    # Protects your database from a flood of addresses that do not exist —
+    # which the cooldown inside PasswordResetService cannot see.
+    forgot-ip: { capacity: 10,  period: 1h }
+
+    reset-ip: { capacity: 20,  period: 1h }
+    validate-ip: { capacity: 30,  period: 1h }
+    refresh-ip: { capacity: 60,  period: 1h }
