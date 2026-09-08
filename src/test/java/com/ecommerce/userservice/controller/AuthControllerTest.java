@@ -11,11 +11,7 @@ import com.ecommerce.userservice.entity.Role;
 import com.ecommerce.userservice.entity.User;
 import com.ecommerce.userservice.exception.InvalidPasswordResetTokenException;
 import com.ecommerce.userservice.exception.UserAlreadyExistsException;
-import com.ecommerce.userservice.service.AuthCookieService;
-import com.ecommerce.userservice.service.AuthService;
-import com.ecommerce.userservice.service.PasswordResetService;
-import com.ecommerce.userservice.service.RefreshCookieService;
-import com.ecommerce.userservice.service.RefreshTokenService;
+import com.ecommerce.userservice.service.*;
 import com.ecommerce.userservice.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
@@ -96,6 +92,9 @@ class AuthControllerTest {
 
     @MockitoBean
     private JwtUtil jwtUtil;
+
+    @MockitoBean
+    private RateLimitService rateLimitService;
 
     @BeforeEach
     void clearAnyLeftoverSecurityContext() {

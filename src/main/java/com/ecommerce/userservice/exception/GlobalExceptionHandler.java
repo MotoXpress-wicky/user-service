@@ -37,6 +37,27 @@ public class GlobalExceptionHandler {
     }
 
 
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimitExceeded(
+            RateLimitExceededException exception,
+            HttpServletRequest request
+    ) {
+        if (exception.isCausedByStoreFailure()) {
+            log.error("Rejected {} because Redis was unreachable", request.getRequestURI());
+        }
+
+        ErrorResponse response = buildErrorResponse(
+                HttpStatus.TOO_MANY_REQUESTS,
+                exception.getMessage(),
+                request.getRequestURI(),
+                List.of()
+        );
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(exception.getRetryAfterSeconds()))
+                .body(response);
+    }
+
     @ExceptionHandler(OAuthAccountException.class)
     public ResponseEntity<ErrorResponse> handleOAuthAccount(
             OAuthAccountException exception,

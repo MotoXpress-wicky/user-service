@@ -1,5 +1,6 @@
 package com.ecommerce.userservice.controller;
 
+import com.ecommerce.userservice.config.ratelimit.RateLimitRule;
 import com.ecommerce.userservice.config.security.AuthErrorCode;
 import com.ecommerce.userservice.config.security.AuthTokenException;
 import com.ecommerce.userservice.dto.*;
@@ -29,6 +30,7 @@ public class AuthController {
     private final PasswordResetService passwordResetService;
     private final JwtUtil jwtUtil;
     private static final String GENERIC_FORGOT_RESPONSE = "Reset link has been sent to your email.";
+    private final RateLimitService rateLimitService;
 
     private static AuthResponse toAuthResponse(User user) {
         return AuthResponse.builder()
@@ -50,13 +52,14 @@ public class AuthController {
 
 
     @Autowired
-    public AuthController(AuthService authService, AuthCookieService authCookieService, RefreshCookieService refreshCookieService, RefreshTokenService refreshTokenService, JwtUtil jwtUtil, PasswordResetService passwordResetService) {
+    public AuthController(AuthService authService, AuthCookieService authCookieService, RefreshCookieService refreshCookieService, RefreshTokenService refreshTokenService, JwtUtil jwtUtil, PasswordResetService passwordResetService, RateLimitService rateLimitService) {
         this.authService = authService;
         this.authCookieService = authCookieService;
         this.refreshCookieService = refreshCookieService;
         this.refreshTokenService = refreshTokenService;
         this.jwtUtil = jwtUtil;
         this.passwordResetService = passwordResetService;
+        this.rateLimitService = rateLimitService;
     }
 
     @PostMapping("/register")
@@ -67,7 +70,12 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
+        //Check ratelimit using email
+        rateLimitService.check(RateLimitRule.LOGIN_EMAIL, request.getEmail());
         Map<String, Object> loginResult = authService.login(request);
+
+        //Refund the email upon successful login. So legitimate users can't be blocked by ratelimiting.'
+        rateLimitService.refund(RateLimitRule.LOGIN_EMAIL, request.getEmail());
 
         User user = (User) loginResult.get("user");
         String authToken = (String) loginResult.get("authToken");
@@ -125,6 +133,9 @@ public class AuthController {
     @PostMapping("/forgot-password")
     public ResponseEntity<Map<String, String>> forgotPassword(
             @Valid @RequestBody ForgotPasswordRequest request) {
+
+        //Check ratelimit using email
+        rateLimitService.check(RateLimitRule.FORGOT_EMAIL, request.getEmail());
 
         passwordResetService.sendPasswordResetEmail(request.getEmail());
 

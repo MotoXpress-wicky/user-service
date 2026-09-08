@@ -10,13 +10,7 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update      # TODO: change to none in production
-  data:
-    redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
-      password: ${REDIS_PASSWORD}
-      ssl:
-        enabled: false # TODO: change to true in production
+
 
   mail:
     host: smtp.gmail.com
@@ -89,33 +83,21 @@ app:
 
 rate-limit:
   enabled: true
+  fail-open: false
+  trust-proxy-headers: false
 
-  # Leave false while you run directly on localhost. Turn on ONLY once you are
-  # behind nginx or Azure Application Gateway. Trusting X-Forwarded-For on a
-  # directly-exposed server lets anyone fake a new IP per request and bypass
-  # every limit below.
-  trust-proxy-headers: false # TODO: change to true in production
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
+    password: ${REDIS_PASSWORD:}
+    ssl: false
+    timeout: 2s
 
   rules:
-    # Blanket net. No real user comes close.
-    global-ip: { capacity: 300, period: 1m }
-
-    # Brute force: one account, many passwords.
-    login-email: { capacity: 5,   period: 15m }
-
-    # Credential stuffing: many accounts, one password each.
-    # Generous because an office or campus shares one IP. A successful login
-    # refunds its token, so this counts failures, not attempts.
-    login-ip: { capacity: 30,  period: 15m }
-
-    register-ip: { capacity: 5,   period: 1h }
-
-    # Protects the victim's inbox from email bombing.
-    forgot-email: { capacity: 3,   period: 1h }
-    # Protects your database from a flood of addresses that do not exist —
-    # which the cooldown inside PasswordResetService cannot see.
-    forgot-ip: { capacity: 10,  period: 1h }
-
-    reset-ip: { capacity: 20,  period: 1h }
-    validate-ip: { capacity: 30,  period: 1h }
-    refresh-ip: { capacity: 60,  period: 1h }
+    login-email: { capacity: 5,  period: 15m }
+    login-ip: { capacity: 30, period: 15m }
+    register-ip: { capacity: 5,  period: 1h }
+    forgot-email: { capacity: 3,  period: 1h }
+    forgot-ip: { capacity: 10, period: 1h }
+    reset-ip: { capacity: 20, period: 1h }
+    validate-ip: { capacity: 30, period: 1h }

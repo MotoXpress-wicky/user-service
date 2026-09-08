@@ -30,7 +30,7 @@ public class AuthService {
 
 
     @Autowired
-    public AuthService(JwtUtil jwtUtil, PasswordEncoder passwordEncoder, UserRepository userRepository, AuthenticationManager authenticationManager, RefreshTokenService refreshTokenService) {
+    public AuthService(JwtUtil jwtUtil, PasswordEncoder passwordEncoder, UserRepository userRepository, AuthenticationManager authenticationManager, RefreshTokenService refreshTokenService, RateLimitService rateLimitService) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.passwordEncoder = passwordEncoder;
