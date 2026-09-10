@@ -109,7 +109,7 @@ class AuthControllerTest {
     /*
      * Nothing clever here - the controller hands the request to AuthService and
      * returns whatever string comes back. Worth one test to confirm the route
-     * is mapped and the JSON body actually binds onto RegisterRequest.
+     * is mapped and the JSON body actually binds onto RegisterRequestDto.
      */
     @Test
     @DisplayName("POST /register returns 200 and the service's message")
@@ -405,7 +405,7 @@ class AuthControllerTest {
     }
 
     /*
-     * @Valid on ForgotPasswordRequest is the only thing standing between the
+     * @Valid on ForgotPasswordRequestDto is the only thing standing between the
      * service and a pile of junk input. This checks that a malformed address is
      * rejected at the edge with a 400, that the field-level message makes it
      * into the details array, and - the part people forget - that the service
@@ -552,8 +552,8 @@ class AuthControllerTest {
         return objectMapper.writeValueAsString(body);
     }
 
-    private RegisterRequest registerRequest(String name, String email, String password) {
-        RegisterRequest request = new RegisterRequest();
+    private RegisterRequestDto registerRequest(String name, String email, String password) {
+        RegisterRequestDto request = new RegisterRequestDto();
         request.setName(name);
         request.setEmail(email);
         request.setPassword(password);
@@ -567,10 +567,10 @@ class AuthControllerTest {
         return request;
     }
 
-    private ForgotPasswordRequest forgotPasswordRequest(String email) {
-        ForgotPasswordRequest request = new ForgotPasswordRequest();
-        request.setEmail(email);
-        return request;
+    private ForgotPasswordRequestDto forgotPasswordRequest(String email) {
+        ForgotPasswordRequestDto data = new ForgotPasswordRequestDto();
+        data.setEmail(email);
+        return data;
     }
 
     private ResetPasswordRequest resetPasswordRequest(String token, String newPassword) {
