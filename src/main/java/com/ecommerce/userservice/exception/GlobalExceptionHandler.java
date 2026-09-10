@@ -272,6 +272,24 @@ public class GlobalExceptionHandler {
     }
 
 
+    @ExceptionHandler(InvalidCaptchaException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCaptcha(
+            InvalidCaptchaException exception,
+            HttpServletRequest request
+    ) {
+        log.warn("Captcha check failed for {}", request.getRequestURI());
+
+        ErrorResponse response = buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage(),
+                request.getRequestURI(),
+                List.of()
+        );
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGenericException(
             Exception exception,
