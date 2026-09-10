@@ -101,3 +101,10 @@ rate-limit:
     forgot-ip: { capacity: 10, period: 1h }
     reset-ip: { capacity: 20, period: 1h }
     validate-ip: { capacity: 30, period: 1h }
+
+captcha:
+  enabled: true                                                      # master switch, so you can turn it off in different environments (prod, dev, test)
+  provider: turnstile                                                # which implementation to use, for later, so later can swap to reCAPTCHA If needed
+  secret-key: ${TURNSTILE_SECRET_KEY}
+  verify-url: https://challenges.cloudflare.com/turnstile/v0/siteverify   # Token verification endpoint url
+  allowed-hostnames: localhost,127.0.0.1                             # allowed domains for widget to be rendered on

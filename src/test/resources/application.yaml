@@ -104,3 +104,11 @@ logging:
 
 rate-limit:
   enabled: false
+
+
+captcha:
+  enabled: false           # turn off for tests
+  provider: placeholder
+  secret-key: placeholder
+  verify-url: placeholder
+  allowed-hostnames: placeholder
