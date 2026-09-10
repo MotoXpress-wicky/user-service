@@ -2,11 +2,7 @@ package com.ecommerce.userservice.controller;
 
 import com.ecommerce.userservice.config.security.AuthErrorCode;
 import com.ecommerce.userservice.config.security.AuthTokenException;
-import com.ecommerce.userservice.dto.CurrentUser;
-import com.ecommerce.userservice.dto.ForgotPasswordRequest;
-import com.ecommerce.userservice.dto.LoginRequest;
-import com.ecommerce.userservice.dto.RegisterRequest;
-import com.ecommerce.userservice.dto.ResetPasswordRequest;
+import com.ecommerce.userservice.dto.*;
 import com.ecommerce.userservice.entity.Role;
 import com.ecommerce.userservice.entity.User;
 import com.ecommerce.userservice.exception.InvalidPasswordResetTokenException;
@@ -118,7 +114,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("POST /register returns 200 and the service's message")
     void registerReturnsTheServiceMessage() throws Exception {
-        when(authService.register(any(RegisterRequest.class))).thenReturn("User registered successfully");
+        when(authService.register(any(RegisterRequestDto.class))).thenReturn("User registered successfully");
 
         mockMvc.perform(post("/api/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -137,7 +133,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("a duplicate email surfaces as 409 with the error body, not a 500")
     void duplicateEmailBecomesAConflictResponse() throws Exception {
-        when(authService.register(any(RegisterRequest.class)))
+        when(authService.register(any(RegisterRequestDto.class)))
                 .thenThrow(new UserAlreadyExistsException("User with email: taken@example.com already exists"));
 
         mockMvc.perform(post("/api/auth/register")

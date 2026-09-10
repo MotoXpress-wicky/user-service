@@ -31,6 +31,7 @@ public class AuthController {
     private final JwtUtil jwtUtil;
     private static final String GENERIC_FORGOT_RESPONSE = "Reset link has been sent to your email.";
     private final RateLimitService rateLimitService;
+    private final CaptchaVerifier captchaVerifier;
 
     private static AuthResponse toAuthResponse(User user) {
         return AuthResponse.builder()
@@ -52,7 +53,7 @@ public class AuthController {
 
 
     @Autowired
-    public AuthController(AuthService authService, AuthCookieService authCookieService, RefreshCookieService refreshCookieService, RefreshTokenService refreshTokenService, JwtUtil jwtUtil, PasswordResetService passwordResetService, RateLimitService rateLimitService) {
+    public AuthController(AuthService authService, AuthCookieService authCookieService, RefreshCookieService refreshCookieService, RefreshTokenService refreshTokenService, JwtUtil jwtUtil, PasswordResetService passwordResetService, RateLimitService rateLimitService, CaptchaVerifier captchaVerifier) {
         this.authService = authService;
         this.authCookieService = authCookieService;
         this.refreshCookieService = refreshCookieService;
@@ -60,11 +61,14 @@ public class AuthController {
         this.jwtUtil = jwtUtil;
         this.passwordResetService = passwordResetService;
         this.rateLimitService = rateLimitService;
+        this.captchaVerifier = captchaVerifier;
     }
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(authService.register(request));
+    public ResponseEntity<String> register(@Valid @RequestBody RegisterRequestDto data, HttpServletRequest request) {
+
+        captchaVerifier.verify(data.getCaptchaToken(), request.getRemoteAddr());
+        return ResponseEntity.ok(authService.register(data));
     }
 
 
@@ -132,12 +136,15 @@ public class AuthController {
 
     @PostMapping("/forgot-password")
     public ResponseEntity<Map<String, String>> forgotPassword(
-            @Valid @RequestBody ForgotPasswordRequest request) {
+            @Valid @RequestBody ForgotPasswordRequestDto data, HttpServletRequest request) {
+
+        //captcha verification
+        captchaVerifier.verify(data.getCaptchaToken(), request.getRemoteAddr());
 
         //Check ratelimit using email
-        rateLimitService.check(RateLimitRule.FORGOT_EMAIL, request.getEmail());
+        rateLimitService.check(RateLimitRule.FORGOT_EMAIL, data.getEmail());
 
-        passwordResetService.sendPasswordResetEmail(request.getEmail());
+        passwordResetService.sendPasswordResetEmail(data.getEmail());
 
         // Same 200, same body, same timing — whether or not the account exists.
         return ResponseEntity.ok(Map.of("message", GENERIC_FORGOT_RESPONSE));

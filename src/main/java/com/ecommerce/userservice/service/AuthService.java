@@ -2,7 +2,7 @@ package com.ecommerce.userservice.service;
 
 
 import com.ecommerce.userservice.dto.LoginRequest;
-import com.ecommerce.userservice.dto.RegisterRequest;
+import com.ecommerce.userservice.dto.RegisterRequestDto;
 import com.ecommerce.userservice.entity.AuthProvider;
 import com.ecommerce.userservice.entity.User;
 import com.ecommerce.userservice.exception.OAuthAccountException;
@@ -38,15 +38,15 @@ public class AuthService {
         this.refreshTokenService = refreshTokenService;
     }
 
-    public String register(RegisterRequest registerRequest) {
-        if (userRepository.existsByEmail(registerRequest.getEmail())) {
+    public String register(RegisterRequestDto data) {
+        if (userRepository.existsByEmail(data.getEmail())) {
             throw new UserAlreadyExistsException("Please use login instead.");
         }
 
         User user = User.builder()
-                .name(registerRequest.getName())
-                .email(registerRequest.getEmail())
-                .password(passwordEncoder.encode(registerRequest.getPassword()))
+                .name(data.getName())
+                .email(data.getEmail())
+                .password(passwordEncoder.encode(data.getPassword()))
                 .build();
 
         userRepository.save(user);

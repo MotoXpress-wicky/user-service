@@ -8,8 +8,10 @@ import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
-public class ForgotPasswordRequest {
+public class ForgotPasswordRequestDto {
     @NotBlank(message = "Email is required")
     @Email(message = "Enter a valid email")
     private String email;
+
+    private String captchaToken;
 }

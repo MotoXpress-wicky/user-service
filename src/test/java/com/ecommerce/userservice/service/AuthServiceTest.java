@@ -1,7 +1,7 @@
 package com.ecommerce.userservice.service;
 
 import com.ecommerce.userservice.dto.LoginRequest;
-import com.ecommerce.userservice.dto.RegisterRequest;
+import com.ecommerce.userservice.dto.RegisterRequestDto;
 import com.ecommerce.userservice.entity.Role;
 import com.ecommerce.userservice.entity.User;
 import com.ecommerce.userservice.exception.UserAlreadyExistsException;
@@ -71,12 +71,12 @@ class AuthServiceTest {
     @Test
     @DisplayName("register stores the encoded password, never the raw one")
     void registerHashesThePasswordBeforeSaving() {
-        RegisterRequest request = registerRequest("Nimal Perera", "nimal@example.com", "sup3r-secret");
+        RegisterRequestDto requestData = registerRequest("Nimal Perera", "nimal@example.com", "sup3r-secret");
 
         when(userRepository.existsByEmail("nimal@example.com")).thenReturn(false);
         when(passwordEncoder.encode("sup3r-secret")).thenReturn("$2a$10$encoded-version");
 
-        String result = authService.register(request);
+        String result = authService.register(requestData);
 
         verify(userRepository).save(savedUserCaptor.capture());
         User saved = savedUserCaptor.getValue();
@@ -98,12 +98,12 @@ class AuthServiceTest {
     @Test
     @DisplayName("When user register using email and password, he/she must have ROLE_DEFAULT and LOCAL as Auth Provider")
     void registerAppliesTheEntityDefaults() {
-        RegisterRequest request = registerRequest("Amara", "amara@example.com", "another-secret");
+        RegisterRequestDto requestData = registerRequest("Amara", "amara@example.com", "another-secret");
 
         when(userRepository.existsByEmail("amara@example.com")).thenReturn(false);
         when(passwordEncoder.encode("another-secret")).thenReturn("encoded");
 
-        authService.register(request);
+        authService.register(requestData);
 
         verify(userRepository).save(savedUserCaptor.capture());
         User saved = savedUserCaptor.getValue();
@@ -120,11 +120,11 @@ class AuthServiceTest {
     @Test
     @DisplayName("register method must throw UserAlreadyExists Exception if email already in the db")
     void registerRejectsAnEmailThatIsAlreadyTaken() {
-        RegisterRequest request = registerRequest("Copycat", "taken@example.com", "whatever");
+        RegisterRequestDto requestData = registerRequest("Copycat", "taken@example.com", "whatever");
 
         when(userRepository.existsByEmail("taken@example.com")).thenReturn(true);
 
-        assertThatThrownBy(() -> authService.register(request))
+        assertThatThrownBy(() -> authService.register(requestData))
                 .isInstanceOf(UserAlreadyExistsException.class)
                 .hasMessageContaining("taken@example.com");
 
@@ -228,12 +228,12 @@ class AuthServiceTest {
     // helpers
     // ---------------------------------------------------------------------
 
-    private RegisterRequest registerRequest(String name, String email, String password) {
-        RegisterRequest request = new RegisterRequest();
-        request.setName(name);
-        request.setEmail(email);
-        request.setPassword(password);
-        return request;
+    private RegisterRequestDto registerRequest(String name, String email, String password) {
+        RegisterRequestDto requestData = new RegisterRequestDto();
+        requestData.setName(name);
+        requestData.setEmail(email);
+        requestData.setPassword(password);
+        return requestData;
     }
 
     private LoginRequest loginRequest(String email, String password) {
