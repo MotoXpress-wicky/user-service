@@ -1,10 +1,11 @@
 package com.ecommerce.userservice.config.filter;
 
-import com.ecommerce.userservice.config.ratelimit.RateLimitProperties;
 import com.ecommerce.userservice.config.ratelimit.RateLimitRule;
+import com.ecommerce.userservice.exception.ErrorCode;
 import com.ecommerce.userservice.exception.ErrorResponse;
 import com.ecommerce.userservice.exception.RateLimitExceededException;
 import com.ecommerce.userservice.service.RateLimitService;
+import com.ecommerce.userservice.util.ClientIpResolver;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,56 +20,50 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 
+/**
+ * Counts requests per IP address and blocks the ones over the limit.
+ * Runs before the controller, so a blocked request never reaches business code.
+ */
 @NullMarked
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
+    private static final String BASE = "/api/v1/user/auth";
+
     private static final Map<String, RateLimitRule> POST_RULES = Map.of(
-            "/api/auth/login", RateLimitRule.LOGIN_IP,
-            "/api/auth/register", RateLimitRule.REGISTER_IP,
-            "/api/auth/forgot-password", RateLimitRule.FORGOT_IP,
-            "/api/auth/reset-password", RateLimitRule.RESET_IP
+            BASE + "/login", RateLimitRule.LOGIN_IP,
+            BASE + "/register", RateLimitRule.REGISTER_IP,
+            BASE + "/forgot-password", RateLimitRule.FORGOT_IP,
+            BASE + "/reset-password", RateLimitRule.RESET_IP
     );
 
     private static final Map<String, RateLimitRule> GET_RULES = Map.of(
-            "/api/auth/reset-password/validate", RateLimitRule.VALIDATE_IP
+            BASE + "/reset-password/validate", RateLimitRule.VALIDATE_IP
     );
 
     private final RateLimitService rateLimitService;
-    private final RateLimitProperties properties;
+    private final ClientIpResolver clientIpResolver;
     private final ObjectMapper objectMapper;
-
 
     @Autowired
     public RateLimitFilter(RateLimitService rateLimitService,
-                           RateLimitProperties properties,
+                           ClientIpResolver clientIpResolver,
                            ObjectMapper objectMapper) {
         this.rateLimitService = rateLimitService;
-        this.properties = properties;
+        this.clientIpResolver = clientIpResolver;
         this.objectMapper = objectMapper;
     }
 
     /**
      * shouldNotFilter comes from OncePerRequestFilter. Spring calls it first.
-     * Return true and doFilterInternal never runs — the request goes straight to the next filter.
-     * <p>
-     * Your line returns true in two cases:
-     * <p>
-     * "OPTIONS".equalsIgnoreCase(request.getMethod())
-     * <p>
-     * OPTIONS is the CORS preflight. Before a real cross-origin POST, the browser sends an OPTIONS request asking
-     * permission. So one login from your React app is actually two HTTP requests:
-     * <p>
-     * OPTIONS /api/auth/login    ← browser asking permission
-     * POST    /api/auth/login    ← the real one
-     * <p>
-     * Without this check, each login would consume two tokens instead of one, silently halving every limit you configured.
+     * Return true and doFilterInternal never runs - the request goes straight on.
      *
-     **/
+     * OPTIONS is the CORS preflight. Before a real cross-origin POST the browser
+     * sends an OPTIONS request asking permission, so one login would be two
+     * requests. Without this check every limit would silently be halved.
+     */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         return "OPTIONS".equalsIgnoreCase(request.getMethod()) || ruleFor(request) == null;
@@ -79,7 +74,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         try {
-            rateLimitService.check(ruleFor(request), clientIp(request));
+            rateLimitService.check(ruleFor(request), clientIpResolver.resolve(request));
         } catch (RateLimitExceededException e) {
             sendRateLimitErrorResponse(request, response, e);
             return;
@@ -88,10 +83,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    /**
-     * Helper method to get the rate limit RULE for a given request.
-     *
-     **/
+    /** Which rule applies to this request, or null when none does. */
     private RateLimitRule ruleFor(HttpServletRequest request) {
         String uri = request.getRequestURI();
         return switch (request.getMethod()) {
@@ -102,41 +94,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     /**
-     * Helper method to get the CLIENT IP address.
-     *
-     **/
-    private String clientIp(HttpServletRequest request) {
-        if (properties.isTrustProxyHeaders()) {
-            String forwarded = request.getHeader("X-Forwarded-For");
-            if (forwarded != null && !forwarded.isBlank()) {
-                int comma = forwarded.indexOf(',');
-                String first = (comma > 0 ? forwarded.substring(0, comma) : forwarded).trim();
-                if (!first.isEmpty()) {
-                    return first;
-                }
-            }
-        }
-        String remote = request.getRemoteAddr();
-        return remote != null ? remote : "unknown";
-    }
-
-
-    /**
-     * use to send rate limit error response.
-     *
-     **/
+     * A filter runs before the controller, so GlobalExceptionHandler cannot see
+     * this error. The body is written by hand here, in the same shape.
+     */
     private void sendRateLimitErrorResponse(HttpServletRequest request,
                                             HttpServletResponse response,
                                             RateLimitExceededException e) throws IOException {
 
-        ErrorResponse body = new ErrorResponse(
-                Instant.now(),
-                HttpStatus.TOO_MANY_REQUESTS.value(),
-                HttpStatus.TOO_MANY_REQUESTS.getReasonPhrase(),
+        ErrorResponse body = ErrorResponse.of(
+                HttpStatus.TOO_MANY_REQUESTS,
+                ErrorCode.RATE_LIMITED,
                 e.getMessage(),
-                request.getRequestURI(),
-                List.of()
-        );
+                request.getRequestURI());
 
         response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

@@ -1,6 +1,6 @@
 package com.ecommerce.userservice.config.filter;
 
-import com.ecommerce.userservice.config.security.AuthErrorCode;
+import com.ecommerce.userservice.exception.ErrorCode;
 import com.ecommerce.userservice.dto.CurrentUser;
 import com.ecommerce.userservice.entity.Role;
 import com.ecommerce.userservice.service.AuthCookieService;
@@ -53,7 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         Optional<String> token = authCookieService.read(request);
 
         if (token.isEmpty()) {
-            fail(request, AuthErrorCode.ACCESS_TOKEN_MISSING);
+            fail(request, ErrorCode.ACCESS_TOKEN_MISSING);
             filterChain.doFilter(request, response);
             return;
         }
@@ -62,7 +62,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             /* Parsing jwt automatically verifies signature and expiration.
              *  When jwt is expired, expiration exception is thrown.
              *  When it is invalid, illegal argument exception is thrown.
-             *  we catch these exception separately and set AuthErrorCode as attribute to the request.
+             *  we catch these exception separately and set ErrorCode as attribute to the request.
              *  Then, inside entry point, entry point query the attribute and render the error response.
              * */
             Claims claims = jwtUtil.extractAllClaims(token.get());
@@ -86,19 +86,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
         } catch (ExpiredJwtException e) {
-            fail(request, AuthErrorCode.ACCESS_TOKEN_EXPIRED);
+            fail(request, ErrorCode.ACCESS_TOKEN_EXPIRED);
             log.debug("Access token expired for {}", request.getRequestURI());
         } catch (JwtException | IllegalArgumentException e) {
             log.warn("Invalid access token for {}: {}", request.getRequestURI(), e.getMessage());
-            fail(request, AuthErrorCode.ACCESS_TOKEN_INVALID);
+            fail(request, ErrorCode.ACCESS_TOKEN_INVALID);
         }
 
         filterChain.doFilter(request, response);
     }
 
-    //Store AuthErrorCode as attribute to the request
-    private void fail(HttpServletRequest request, AuthErrorCode code) {
+    //Store ErrorCode as attribute to the request
+    private void fail(HttpServletRequest request, ErrorCode code) {
         SecurityContextHolder.clearContext();
-        request.setAttribute(AuthErrorCode.REQUEST_ATTRIBUTE, code);
+        request.setAttribute(ErrorCode.REQUEST_ATTRIBUTE, code);
     }
 }

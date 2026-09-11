@@ -1,11 +1,12 @@
 package com.ecommerce.userservice.controller;
 
 import com.ecommerce.userservice.config.ratelimit.RateLimitRule;
-import com.ecommerce.userservice.config.security.AuthErrorCode;
+import com.ecommerce.userservice.exception.ErrorCode;
 import com.ecommerce.userservice.config.security.AuthTokenException;
 import com.ecommerce.userservice.dto.*;
 import com.ecommerce.userservice.entity.User;
 import com.ecommerce.userservice.service.*;
+import com.ecommerce.userservice.util.ClientIpResolver;
 import com.ecommerce.userservice.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -20,7 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/auth")
+@RequestMapping("/api/v1/user/auth")
 public class AuthController {
 
     private final AuthService authService;
@@ -32,6 +33,7 @@ public class AuthController {
     private static final String GENERIC_FORGOT_RESPONSE = "Reset link has been sent to your email.";
     private final RateLimitService rateLimitService;
     private final CaptchaVerifier captchaVerifier;
+    private final ClientIpResolver clientIpResolver;
 
     private static AuthResponse toAuthResponse(User user) {
         return AuthResponse.builder()
@@ -53,7 +55,7 @@ public class AuthController {
 
 
     @Autowired
-    public AuthController(AuthService authService, AuthCookieService authCookieService, RefreshCookieService refreshCookieService, RefreshTokenService refreshTokenService, JwtUtil jwtUtil, PasswordResetService passwordResetService, RateLimitService rateLimitService, CaptchaVerifier captchaVerifier) {
+    public AuthController(AuthService authService, AuthCookieService authCookieService, RefreshCookieService refreshCookieService, RefreshTokenService refreshTokenService, JwtUtil jwtUtil, PasswordResetService passwordResetService, RateLimitService rateLimitService, CaptchaVerifier captchaVerifier, ClientIpResolver clientIpResolver) {
         this.authService = authService;
         this.authCookieService = authCookieService;
         this.refreshCookieService = refreshCookieService;
@@ -62,12 +64,13 @@ public class AuthController {
         this.passwordResetService = passwordResetService;
         this.rateLimitService = rateLimitService;
         this.captchaVerifier = captchaVerifier;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @PostMapping("/register")
     public ResponseEntity<String> register(@Valid @RequestBody RegisterRequestDto data, HttpServletRequest request) {
 
-        captchaVerifier.verify(data.getCaptchaToken(), request.getRemoteAddr());
+        captchaVerifier.verify(data.getCaptchaToken(), clientIpResolver.resolve(request));
         return ResponseEntity.ok(authService.register(data));
     }
 
@@ -109,7 +112,7 @@ public class AuthController {
 
     @PostMapping("/refresh")
     public ResponseEntity<AuthResponse> refresh(HttpServletRequest request) {
-        String rawRefreshToken = refreshCookieService.read(request).orElseThrow(() -> new AuthTokenException(AuthErrorCode.REFRESH_TOKEN_MISSING));
+        String rawRefreshToken = refreshCookieService.read(request).orElseThrow(() -> new AuthTokenException(ErrorCode.REFRESH_TOKEN_MISSING));
 
         RefreshTokenService.RotationResult result = refreshTokenService.rotate(rawRefreshToken);
         User user = result.user();
@@ -139,7 +142,7 @@ public class AuthController {
             @Valid @RequestBody ForgotPasswordRequestDto data, HttpServletRequest request) {
 
         //captcha verification
-        captchaVerifier.verify(data.getCaptchaToken(), request.getRemoteAddr());
+        captchaVerifier.verify(data.getCaptchaToken(), clientIpResolver.resolve(request));
 
         //Check ratelimit using email
         rateLimitService.check(RateLimitRule.FORGOT_EMAIL, data.getEmail());

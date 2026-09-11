@@ -1,6 +1,6 @@
 package com.ecommerce.userservice.service;
 
-import com.ecommerce.userservice.config.security.AuthErrorCode;
+import com.ecommerce.userservice.exception.ErrorCode;
 import com.ecommerce.userservice.config.security.AuthTokenException;
 import com.ecommerce.userservice.entity.RefreshToken;
 import com.ecommerce.userservice.entity.User;
@@ -65,21 +65,21 @@ public class RefreshTokenService {
         String hash = hash(rawToken);
 
         RefreshToken stored = refreshTokenRepository.findByTokenHash(hash)
-                .orElseThrow(() -> new AuthTokenException(AuthErrorCode.REFRESH_TOKEN_INVALID));
+                .orElseThrow(() -> new AuthTokenException(ErrorCode.REFRESH_TOKEN_INVALID));
 
         if (stored.getRevokedAt() != null) {
             // Already spent. Someone replayed a stolen copy - revoke every session.
             refreshTokenRepository.revokeAllForUser(stored.getUser().getId(), Instant.now());
-            throw new AuthTokenException(AuthErrorCode.REFRESH_TOKEN_REUSED);
+            throw new AuthTokenException(ErrorCode.REFRESH_TOKEN_REUSED);
         }
 
         if (stored.getExpiresAt().isBefore(Instant.now())) {
-            throw new AuthTokenException(AuthErrorCode.REFRESH_TOKEN_EXPIRED);
+            throw new AuthTokenException(ErrorCode.REFRESH_TOKEN_EXPIRED);
         }
 
         if (stored.getUser().isLocked()) {
             refreshTokenRepository.revokeAllForUser(stored.getUser().getId(), Instant.now());
-            throw new AuthTokenException(AuthErrorCode.ACCOUNT_LOCKED);
+            throw new AuthTokenException(ErrorCode.ACCOUNT_LOCKED);
         }
 
         // 'stored' is managed, so this UPDATE is flushed automatically at commit.

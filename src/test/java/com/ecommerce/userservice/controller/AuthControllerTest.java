@@ -1,6 +1,6 @@
 package com.ecommerce.userservice.controller;
 
-import com.ecommerce.userservice.config.security.AuthErrorCode;
+import com.ecommerce.userservice.exception.ErrorCode;
 import com.ecommerce.userservice.config.security.AuthTokenException;
 import com.ecommerce.userservice.dto.*;
 import com.ecommerce.userservice.entity.Role;
@@ -8,6 +8,7 @@ import com.ecommerce.userservice.entity.User;
 import com.ecommerce.userservice.exception.InvalidPasswordResetTokenException;
 import com.ecommerce.userservice.exception.UserAlreadyExistsException;
 import com.ecommerce.userservice.service.*;
+import com.ecommerce.userservice.util.ClientIpResolver;
 import com.ecommerce.userservice.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.AfterEach;
@@ -92,6 +93,16 @@ class AuthControllerTest {
     @MockitoBean
     private RateLimitService rateLimitService;
 
+    // AuthController and RateLimitFilter both ask for this bean now.
+    // It lives in the util package, which this slice does not load, so it is faked.
+    @MockitoBean
+    private ClientIpResolver clientIpResolver;
+
+    // TurnstileVerifier is a @Service, and @WebMvcTest loads no @Service beans.
+    // A mock does nothing, which is what these tests want.
+    @MockitoBean
+    private CaptchaVerifier captchaVerifier;
+
     @BeforeEach
     void clearAnyLeftoverSecurityContext() {
         SecurityContextHolder.clearContext();
@@ -103,7 +114,7 @@ class AuthControllerTest {
     }
 
     // ---------------------------------------------------------------------
-    // POST /api/auth/register
+    // POST /api/v1/user/auth/register
     // ---------------------------------------------------------------------
 
     /*
@@ -116,7 +127,7 @@ class AuthControllerTest {
     void registerReturnsTheServiceMessage() throws Exception {
         when(authService.register(any(RegisterRequestDto.class))).thenReturn("User registered successfully");
 
-        mockMvc.perform(post("/api/auth/register")
+        mockMvc.perform(post("/api/v1/user/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(registerRequest("Nimal Perera", "nimal@example.com", "sup3r-secret"))))
                 .andExpect(status().isOk())
@@ -136,17 +147,17 @@ class AuthControllerTest {
         when(authService.register(any(RegisterRequestDto.class)))
                 .thenThrow(new UserAlreadyExistsException("User with email: taken@example.com already exists"));
 
-        mockMvc.perform(post("/api/auth/register")
+        mockMvc.perform(post("/api/v1/user/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(registerRequest("Copycat", "taken@example.com", "whatever"))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.status").value(409))
                 .andExpect(jsonPath("$.message").value("User with email: taken@example.com already exists"))
-                .andExpect(jsonPath("$.path").value("/api/auth/register"));
+                .andExpect(jsonPath("$.path").value("/api/v1/user/auth/register"));
     }
 
     // ---------------------------------------------------------------------
-    // POST /api/auth/login
+    // POST /api/v1/user/auth/login
     // ---------------------------------------------------------------------
 
     /*
@@ -170,7 +181,7 @@ class AuthControllerTest {
         when(authCookieService.create("signed.jwt.value")).thenReturn(cookie("auth_token", "signed.jwt.value"));
         when(refreshCookieService.create("raw-refresh-token")).thenReturn(cookie("refresh_token", "raw-refresh-token"));
 
-        MvcResult result = mockMvc.perform(post("/api/auth/login")
+        MvcResult result = mockMvc.perform(post("/api/v1/user/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(loginRequest("nimal@example.com", "sup3r-secret"))))
                 .andExpect(status().isOk())
@@ -207,7 +218,7 @@ class AuthControllerTest {
         when(authCookieService.create(anyString())).thenReturn(cookie("auth_token", "signed.jwt.value"));
         when(refreshCookieService.create(anyString())).thenReturn(cookie("refresh_token", "raw-refresh-token"));
 
-        mockMvc.perform(post("/api/auth/login")
+        mockMvc.perform(post("/api/v1/user/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(loginRequest("nimal@example.com", "sup3r-secret"))))
                 .andExpect(status().isOk())
@@ -217,7 +228,7 @@ class AuthControllerTest {
     }
 
     // ---------------------------------------------------------------------
-    // GET /api/auth/me
+    // GET /api/v1/user/auth/me
     // ---------------------------------------------------------------------
 
     /*
@@ -243,7 +254,7 @@ class AuthControllerTest {
         SecurityContextHolder.getContext().setAuthentication(
                 new UsernamePasswordAuthenticationToken(principal, null, List.of()));
 
-        mockMvc.perform(get("/api/auth/me"))
+        mockMvc.perform(get("/api/v1/user/auth/me"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(7))
                 .andExpect(jsonPath("$.email").value("nimal@example.com"))
@@ -259,12 +270,12 @@ class AuthControllerTest {
     @Test
     @DisplayName("GET /me with nobody logged in returns 401")
     void meReturnsUnauthorizedWithoutAPrincipal() throws Exception {
-        mockMvc.perform(get("/api/auth/me"))
+        mockMvc.perform(get("/api/v1/user/auth/me"))
                 .andExpect(status().isUnauthorized());
     }
 
     // ---------------------------------------------------------------------
-    // POST /api/auth/refresh
+    // POST /api/v1/user/auth/refresh
     // ---------------------------------------------------------------------
 
     /*
@@ -288,7 +299,7 @@ class AuthControllerTest {
         when(authCookieService.create("new.jwt.value")).thenReturn(cookie("auth_token", "new.jwt.value"));
         when(refreshCookieService.create("new-refresh-token")).thenReturn(cookie("refresh_token", "new-refresh-token"));
 
-        MvcResult result = mockMvc.perform(post("/api/auth/refresh"))
+        MvcResult result = mockMvc.perform(post("/api/v1/user/auth/refresh"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(7))
                 .andReturn();
@@ -312,9 +323,9 @@ class AuthControllerTest {
     void refreshWithoutACookieIsUnauthorized() throws Exception {
         when(refreshCookieService.read(any(HttpServletRequest.class))).thenReturn(Optional.empty());
 
-        mockMvc.perform(post("/api/auth/refresh"))
+        mockMvc.perform(post("/api/v1/user/auth/refresh"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value(AuthErrorCode.REFRESH_TOKEN_MISSING.name()))
+                .andExpect(jsonPath("$.code").value(ErrorCode.REFRESH_TOKEN_MISSING.name()))
                 .andExpect(jsonPath("$.refreshable").value(false));
 
         verify(refreshTokenService, never()).rotate(anyString());
@@ -330,13 +341,13 @@ class AuthControllerTest {
     void reusedRefreshTokenClearsTheCookies() throws Exception {
         when(refreshCookieService.read(any(HttpServletRequest.class))).thenReturn(Optional.of("stolen-token"));
         when(refreshTokenService.rotate("stolen-token"))
-                .thenThrow(new AuthTokenException(AuthErrorCode.REFRESH_TOKEN_REUSED));
+                .thenThrow(new AuthTokenException(ErrorCode.REFRESH_TOKEN_REUSED));
         when(authCookieService.clear()).thenReturn(expiredCookie("auth_token"));
         when(refreshCookieService.clear()).thenReturn(expiredCookie("refresh_token"));
 
-        MvcResult result = mockMvc.perform(post("/api/auth/refresh"))
+        MvcResult result = mockMvc.perform(post("/api/v1/user/auth/refresh"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value(AuthErrorCode.REFRESH_TOKEN_REUSED.name()))
+                .andExpect(jsonPath("$.code").value(ErrorCode.REFRESH_TOKEN_REUSED.name()))
                 .andReturn();
 
         List<String> setCookieHeaders = result.getResponse().getHeaders(HttpHeaders.SET_COOKIE);
@@ -346,7 +357,7 @@ class AuthControllerTest {
     }
 
     // ---------------------------------------------------------------------
-    // POST /api/auth/logout
+    // POST /api/v1/user/auth/logout
     // ---------------------------------------------------------------------
 
     /*
@@ -361,7 +372,7 @@ class AuthControllerTest {
         when(authCookieService.clear()).thenReturn(expiredCookie("auth_token"));
         when(refreshCookieService.clear()).thenReturn(expiredCookie("refresh_token"));
 
-        MvcResult result = mockMvc.perform(post("/api/auth/logout"))
+        MvcResult result = mockMvc.perform(post("/api/v1/user/auth/logout"))
                 .andExpect(status().isNoContent())
                 .andReturn();
 
@@ -373,7 +384,7 @@ class AuthControllerTest {
     }
 
     // ---------------------------------------------------------------------
-    // POST /api/auth/forgot-password
+    // POST /api/v1/user/auth/forgot-password
     // ---------------------------------------------------------------------
 
     /*
@@ -386,13 +397,13 @@ class AuthControllerTest {
     @Test
     @DisplayName("forgot-password answers identically for a known and an unknown address")
     void forgotPasswordGivesTheSameAnswerEitherWay() throws Exception {
-        MvcResult known = mockMvc.perform(post("/api/auth/forgot-password")
+        MvcResult known = mockMvc.perform(post("/api/v1/user/auth/forgot-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(forgotPasswordRequest("nimal@example.com"))))
                 .andExpect(status().isOk())
                 .andReturn();
 
-        MvcResult unknown = mockMvc.perform(post("/api/auth/forgot-password")
+        MvcResult unknown = mockMvc.perform(post("/api/v1/user/auth/forgot-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(forgotPasswordRequest("nobody@example.com"))))
                 .andExpect(status().isOk())
@@ -414,7 +425,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("a malformed email is rejected with 400 before the service is touched")
     void forgotPasswordRejectsAMalformedEmail() throws Exception {
-        mockMvc.perform(post("/api/auth/forgot-password")
+        mockMvc.perform(post("/api/v1/user/auth/forgot-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(forgotPasswordRequest("definitely-not-an-email"))))
                 .andExpect(status().isBadRequest())
@@ -433,7 +444,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("a blank email produces the required-field message")
     void forgotPasswordRejectsABlankEmail() throws Exception {
-        mockMvc.perform(post("/api/auth/forgot-password")
+        mockMvc.perform(post("/api/v1/user/auth/forgot-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(forgotPasswordRequest(""))))
                 .andExpect(status().isBadRequest())
@@ -443,7 +454,7 @@ class AuthControllerTest {
     }
 
     // ---------------------------------------------------------------------
-    // GET /api/auth/reset-password/validate
+    // GET /api/v1/user/auth/reset-password/validate
     // ---------------------------------------------------------------------
 
     /*
@@ -454,7 +465,7 @@ class AuthControllerTest {
     @DisplayName("valid password reset token returns a bare 204")
     void validateResetTokenAcceptsAGoodToken() throws Exception {
 
-        mockMvc.perform(get("/api/auth/reset-password/validate").param("token", "good-token"))
+        mockMvc.perform(get("/api/v1/user/auth/reset-password/validate").param("token", "good-token"))
                 .andExpect(status().isNoContent());
 
         verify(passwordResetService).validateToken("good-token");
@@ -473,14 +484,14 @@ class AuthControllerTest {
         doThrow(new InvalidPasswordResetTokenException())
                 .when(passwordResetService).validateToken("dead-token");
 
-        mockMvc.perform(get("/api/auth/reset-password/validate").param("token", "dead-token"))
+        mockMvc.perform(get("/api/v1/user/auth/reset-password/validate").param("token", "dead-token"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.message").value("This password reset link is invalid or has expired."));
     }
 
     // ---------------------------------------------------------------------
-    // POST /api/auth/reset-password
+    // POST /api/v1/user/auth/reset-password
     // ---------------------------------------------------------------------
 
     /*
@@ -495,7 +506,7 @@ class AuthControllerTest {
     void resetPasswordClearsTheAuthCookie() throws Exception {
         when(authCookieService.clear()).thenReturn(expiredCookie("auth_token"));
 
-        MvcResult result = mockMvc.perform(post("/api/auth/reset-password")
+        MvcResult result = mockMvc.perform(post("/api/v1/user/auth/reset-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(resetPasswordRequest("good-token", "brand-new-password"))))
                 .andExpect(status().isOk())
@@ -519,7 +530,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("a too-short password is rejected at the edge")
     void resetPasswordRejectsAShortPassword() throws Exception {
-        mockMvc.perform(post("/api/auth/reset-password")
+        mockMvc.perform(post("/api/v1/user/auth/reset-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(resetPasswordRequest("good-token", "short"))))
                 .andExpect(status().isBadRequest())
@@ -535,7 +546,7 @@ class AuthControllerTest {
     @Test
     @DisplayName("a reset with a missing token is rejected before the service runs")
     void resetPasswordRejectsAMissingToken() throws Exception {
-        mockMvc.perform(post("/api/auth/reset-password")
+        mockMvc.perform(post("/api/v1/user/auth/reset-password")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(resetPasswordRequest("", "brand-new-password"))))
                 .andExpect(status().isBadRequest())

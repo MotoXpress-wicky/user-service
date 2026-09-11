@@ -1,6 +1,6 @@
 package com.ecommerce.userservice.service;
 
-import com.ecommerce.userservice.config.security.AuthErrorCode;
+import com.ecommerce.userservice.exception.ErrorCode;
 import com.ecommerce.userservice.config.security.AuthTokenException;
 import com.ecommerce.userservice.entity.RefreshToken;
 import com.ecommerce.userservice.entity.Role;
@@ -169,7 +169,7 @@ class RefreshTokenServiceTest {
         assertThatThrownBy(() -> refreshTokenService.rotate("no-such-token"))
                 .isInstanceOf(AuthTokenException.class)
                 .satisfies(thrown -> assertThat(((AuthTokenException) thrown).getErrorCode())
-                        .isEqualTo(AuthErrorCode.REFRESH_TOKEN_INVALID));
+                        .isEqualTo(ErrorCode.REFRESH_TOKEN_INVALID));
 
         verify(refreshTokenRepository, never()).revokeAllForUser(anyLong(), any(Instant.class));
         verify(refreshTokenRepository, never()).save(any(RefreshToken.class));
@@ -197,7 +197,7 @@ class RefreshTokenServiceTest {
         assertThatThrownBy(() -> refreshTokenService.rotate(rawToken))
                 .isInstanceOf(AuthTokenException.class)
                 .satisfies(thrown -> assertThat(((AuthTokenException) thrown).getErrorCode())
-                        .isEqualTo(AuthErrorCode.REFRESH_TOKEN_REUSED));
+                        .isEqualTo(ErrorCode.REFRESH_TOKEN_REUSED));
 
         verify(refreshTokenRepository).revokeAllForUser(eq(42L), any(Instant.class));
         verify(refreshTokenRepository, never()).save(any(RefreshToken.class));
@@ -220,7 +220,7 @@ class RefreshTokenServiceTest {
         assertThatThrownBy(() -> refreshTokenService.rotate(rawToken))
                 .isInstanceOf(AuthTokenException.class)
                 .satisfies(thrown -> assertThat(((AuthTokenException) thrown).getErrorCode())
-                        .isEqualTo(AuthErrorCode.REFRESH_TOKEN_EXPIRED));
+                        .isEqualTo(ErrorCode.REFRESH_TOKEN_EXPIRED));
 
         verify(refreshTokenRepository, never()).revokeAllForUser(anyLong(), any(Instant.class));
         verify(refreshTokenRepository, never()).save(any(RefreshToken.class));

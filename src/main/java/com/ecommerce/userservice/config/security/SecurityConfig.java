@@ -55,7 +55,7 @@ public class SecurityConfig {
        - Passes to next filter (filterChain.doFilter)
        ↓
     3. Request reaches authorizeHttpRequests
-       - Checks: Is this route protected? → YES (/api/users)
+       - Checks: Is this route protected? → YES (/api/v1/user/profile)
        - Checks: Is user authenticated? → NO
        ↓
     4. Spring Security calls AuthenticationEntryPoint
@@ -97,13 +97,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers(
-                                "/api/auth/login"
-                                , "/api/auth/register"
-                                , "/api/auth/refresh"
-                                , "/api/auth/logout"
-                                , "/api/auth/forgot-password"
-                                , "/api/auth/reset-password"
-                                , "/api/auth/reset-password/validate"
+                                "/api/v1/user/auth/login"
+                                , "/api/v1/user/auth/register"
+                                , "/api/v1/user/auth/refresh"
+                                , "/api/v1/user/auth/logout"
+                                , "/api/v1/user/auth/forgot-password"
+                                , "/api/v1/user/auth/reset-password"
+                                , "/api/v1/user/auth/reset-password/validate"
                         ).permitAll()
                         .anyRequest().authenticated()
                 );

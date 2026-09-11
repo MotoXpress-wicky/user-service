@@ -75,23 +75,23 @@ refresh:
     ttl-minutes: 20160     # 14 days
   cookie:
     name: refresh_token
-    path: /api/auth
+    path: /api/v1/user/auth
     ttl-minutes: 20160
     secure: false
     same-site: Lax
 
 frontend:
-  failure-redirect-url: "http://localhost:8081/login"
-  success-redirect-url: "http://localhost:8081/"
+  failure-redirect-url: "http://localhost/login"
+  success-redirect-url: "http://localhost/"
 
 cors:
-  allowed-origins: "http://localhost:8081"
+  allowed-origins: "http://localhost"
 
 app:
   mail:
     from-name: "MotoXpress"
   frontend:
-    reset-password-url: "http://localhost:8081/reset-password"
+    reset-password-url: "http://localhost/reset-password"
   password-reset:
     token-ttl-minutes: 30
     resend-cooldown-seconds: 60

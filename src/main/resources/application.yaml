@@ -47,7 +47,7 @@ spring:
 auth:
   token:
     secret: ${JWT_SECRET}
-    ttl-minutes: 1             # 15min
+    ttl-minutes: 15            # 15 minutes
   cookie:
     name: access_token
     path: /
@@ -60,23 +60,25 @@ refresh:
     ttl-minutes: 20160          # 14 days
   cookie:
     name: refresh_token
-    path: /api/auth
+    path: /api/v1/user/auth
     ttl-minutes: 20160          # 14 days
     secure: false
     same-site: Lax
 
 frontend:
-  failure-redirect-url: "${FRONTEND_URL:http://localhost:8081}/login"
-  success-redirect-url: "${FRONTEND_URL:http://localhost:8081}/"
+  failure-redirect-url: "${FRONTEND_URL:http://localhost}/login"
+  success-redirect-url: "${FRONTEND_URL:http://localhost}/"
 
 cors:
-  allowed-origins: "${ALLOWED_ORIGINS:http://localhost:8081}"
+  # Nginx serves the UI and the API on one origin, so CORS is not used
+  # in normal local work. Kept for running the UI on its own port.
+  allowed-origins: "${ALLOWED_ORIGINS:http://localhost,http://localhost:3000}"
 
 app:
   mail:
     from-name: "MotoXpress"
   frontend:
-    reset-password-url: ${FRONTEND_BASE_URL:http://localhost:8081}/reset-password
+    reset-password-url: ${FRONTEND_BASE_URL:http://localhost}/reset-password
   password-reset:
     token-ttl-minutes: 30
     resend-cooldown-seconds: 60
@@ -84,7 +86,7 @@ app:
 rate-limit:
   enabled: true
   fail-open: false
-  trust-proxy-headers: false
+  trust-proxy-headers: true   # Nginx overwrites X-Forwarded-For with the real client IP
 
   redis:
     host: ${REDIS_HOST:localhost}

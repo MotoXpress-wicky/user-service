@@ -126,7 +126,9 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.register(requestData))
                 .isInstanceOf(UserAlreadyExistsException.class)
-                .hasMessageContaining("taken@example.com");
+                // The message is shown to the user, so it stays short and does not
+                // repeat the email back. See AuthService.register.
+                .hasMessage("Please use login instead.");
 
         verify(userRepository, never()).save(any(User.class)); // Tell mokito to,verify that userRepository.save() was never called with a User.
         verifyNoInteractions(passwordEncoder); // Tell mokito to,verify that o method called on passwordEncoder.
