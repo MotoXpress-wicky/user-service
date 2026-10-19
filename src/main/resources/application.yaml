@@ -42,6 +42,7 @@ spring:
               - profile
             # Spring listens to this exact URL by default to catch Google's redirect. Do not need to manually create
             # callback route like we do in node.js
+            # used to catch authoization code from Google'
             redirectUri: "{baseUrl}/login/oauth2/code/{registrationId}"
 
 auth:
