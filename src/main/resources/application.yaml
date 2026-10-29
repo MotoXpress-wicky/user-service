@@ -92,6 +92,11 @@ app:
     token-ttl-minutes: 30
     resend-cooldown-seconds: 60
 
+logging:
+  pattern:
+    # traceId = the X-Request-Id that Nginx adds to every request
+    level: "%5p [${spring.application.name},%X{traceId:-}]"
+
 # RabbitMQ events published by this service (docs/mvp/07-events.md).
 # The names are settings, so another project can rename them without changing Java.
 events:

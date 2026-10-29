@@ -1,6 +1,7 @@
 package com.ecommerce.userservice.event;
 
 import com.ecommerce.userservice.config.events.EventsProperties;
+import com.ecommerce.userservice.config.filter.RequestIdFilter;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
 import org.springframework.amqp.AmqpException;
@@ -27,9 +28,6 @@ import java.util.UUID;
 @Component
 public class EventPublisher {
 
-    /** The MDC key that holds the request id, once a request id filter exists. A missing value is skipped. */
-    private static final String TRACE_ID_KEY = "traceId";
-
     private final ApplicationEventPublisher spring;
     private final RabbitTemplate rabbit;
     private final String exchange;
@@ -42,7 +40,7 @@ public class EventPublisher {
 
     /** The name is the routing key. */
     public void publish(String eventName, Map<String, Object> body) {
-        spring.publishEvent(new PendingEvent(eventName, UUID.randomUUID(), MDC.get(TRACE_ID_KEY), body));
+        spring.publishEvent(new PendingEvent(eventName, UUID.randomUUID(), MDC.get(RequestIdFilter.MDC_KEY), body));
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
