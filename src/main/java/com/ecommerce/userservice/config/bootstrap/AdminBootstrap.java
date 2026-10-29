@@ -10,6 +10,7 @@ import com.ecommerce.userservice.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -28,6 +29,9 @@ import java.util.Optional;
  *   <li>otherwise: a warning is logged and nothing changes.</li>
  * </ul>
  * Once any admin exists this does nothing, so it is safe to leave the setting in place.
+ * <p>
+ * It must never stop the service from starting. If two copies start at the same moment, both may try to create
+ * the account and one hits the unique email rule. That is not an error: the other copy did the work.
  */
 @Slf4j
 @Component
@@ -59,7 +63,11 @@ public class AdminBootstrap implements ApplicationRunner {
         if (email == null || email.isBlank()) {
             return;
         }
-        transaction.executeWithoutResult(status -> bootstrap(email.trim()));
+        try {
+            transaction.executeWithoutResult(status -> bootstrap(email.trim()));
+        } catch (DataIntegrityViolationException e) {
+            log.info("Admin bootstrap: another copy of the service created the account at the same time. Nothing to do.");
+        }
     }
 
     private void bootstrap(String email) {
