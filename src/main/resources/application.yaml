@@ -92,6 +92,14 @@ app:
     token-ttl-minutes: 30
     resend-cooldown-seconds: 60
 
+# The first admin (docs/mvp/05-components/user-service.md). Empty email = nothing happens.
+# If no admin exists yet: this account gets ROLE_ADMIN, or is created with the password if it does not exist.
+admin:
+  bootstrap:
+    email: ${ADMIN_BOOTSTRAP_EMAIL:}
+    password: ${ADMIN_BOOTSTRAP_PASSWORD:}
+    name: ${ADMIN_BOOTSTRAP_NAME:Administrator}
+
 logging:
   pattern:
     # traceId = the X-Request-Id that Nginx adds to every request

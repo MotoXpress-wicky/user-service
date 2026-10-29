@@ -67,6 +67,13 @@ events:
   password-reset: user.password.reset
   password-changed: user.password.changed
 
+# No first admin is created during tests, unless a test sets these.
+admin:
+  bootstrap:
+    email: ""
+    password: ""
+    name: Administrator
+
 auth:
   token:
     # HMAC-SHA256 needs at least 32 bytes of key material. Obviously fake.
