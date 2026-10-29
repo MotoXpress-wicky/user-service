@@ -129,7 +129,11 @@ public class AuthController {
 
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout() {
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
+        // End the session on the server too, not only in the browser. Without this, a copied refresh token
+        // would keep working after the user logged out, until it expires (14 days).
+        refreshCookieService.read(request).ifPresent(refreshTokenService::revoke);
+
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, authCookieService.clear().toString())
                 .header(HttpHeaders.SET_COOKIE, refreshCookieService.clear().toString())

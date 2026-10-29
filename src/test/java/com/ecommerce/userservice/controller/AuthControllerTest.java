@@ -383,6 +383,34 @@ class AuthControllerTest {
         assertThat(result.getResponse().getContentAsString()).isEmpty();
     }
 
+    /*
+     * Clearing the cookies only logs the browser out. The refresh token must also be ended on the server,
+     * or a copy of it (for example a stolen one) would still work after the user pressed "log out".
+     */
+    @Test
+    @DisplayName("POST /logout ends the refresh token on the server")
+    void logoutRevokesTheRefreshToken() throws Exception {
+        when(authCookieService.clear()).thenReturn(expiredCookie("auth_token"));
+        when(refreshCookieService.clear()).thenReturn(expiredCookie("refresh_token"));
+        when(refreshCookieService.read(any(HttpServletRequest.class))).thenReturn(Optional.of("raw-refresh-token"));
+
+        mockMvc.perform(post("/api/v1/user/auth/logout")).andExpect(status().isNoContent());
+
+        verify(refreshTokenService).revoke("raw-refresh-token");
+    }
+
+    @Test
+    @DisplayName("POST /logout without a refresh cookie still works and revokes nothing")
+    void logoutWithoutACookie() throws Exception {
+        when(authCookieService.clear()).thenReturn(expiredCookie("auth_token"));
+        when(refreshCookieService.clear()).thenReturn(expiredCookie("refresh_token"));
+        when(refreshCookieService.read(any(HttpServletRequest.class))).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/api/v1/user/auth/logout")).andExpect(status().isNoContent());
+
+        verify(refreshTokenService, never()).revoke(anyString());
+    }
+
     // ---------------------------------------------------------------------
     // POST /api/v1/user/auth/forgot-password
     // ---------------------------------------------------------------------
