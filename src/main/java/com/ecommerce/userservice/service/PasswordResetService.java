@@ -4,6 +4,7 @@ package com.ecommerce.userservice.service;
 import com.ecommerce.userservice.entity.AuthProvider;
 import com.ecommerce.userservice.entity.PasswordResetToken;
 import com.ecommerce.userservice.entity.User;
+import com.ecommerce.userservice.event.AccountEvents;
 import com.ecommerce.userservice.exception.InvalidPasswordResetTokenException;
 import com.ecommerce.userservice.repository.PasswordResetTokenRepository;
 import com.ecommerce.userservice.repository.RefreshTokenRepository;
@@ -36,7 +37,7 @@ public class PasswordResetService {
     private final UserRepository userRepository;
     private final PasswordResetTokenRepository tokenRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
+    private final AccountEvents accountEvents;
     private final RefreshTokenRepository refreshTokenRepository;
 
     @Value("${app.frontend.reset-password-url}")
@@ -52,13 +53,13 @@ public class PasswordResetService {
     public PasswordResetService(UserRepository userRepository,
                                 PasswordResetTokenRepository tokenRepository,
                                 PasswordEncoder passwordEncoder,
-                                EmailService emailService,
+                                AccountEvents accountEvents,
                                 RefreshTokenRepository refreshTokenRepository
     ) {
         this.userRepository = userRepository;
         this.tokenRepository = tokenRepository;
         this.passwordEncoder = passwordEncoder;
-        this.emailService = emailService;
+        this.accountEvents = accountEvents;
         this.refreshTokenRepository = refreshTokenRepository;
     }
 
@@ -67,9 +68,8 @@ public class PasswordResetService {
      * The controller replies with the same 200 either way.
      * <p>
      * Not @Transactional on purpose: the @Modifying repository methods carry
-     * their own transaction, and this keeps the @Async mail call from firing
-     * before an enclosing transaction commits (which would race the user
-     * clicking the link against the token row actually existing).
+     * their own transaction, so the token row is saved before the event goes out
+     * (which would race the user clicking the link against the token row existing).
      */
     public void sendPasswordResetEmail(String email) {
         Optional<User> optionalUser = userRepository.findByEmail(email);
@@ -113,7 +113,7 @@ public class PasswordResetService {
                 .build()
                 .toUriString();
 
-        emailService.sendPasswordResetEmail(user.getEmail(), user.getName(), link, ttlMinutes);
+        accountEvents.passwordReset(user, link, ttlMinutes);
     }
 
     /**
@@ -151,7 +151,7 @@ public class PasswordResetService {
         refreshTokenRepository.revokeAllForUser(user.getId(), Instant.now());
 
 
-        emailService.sendPasswordChangedEmail(user.getEmail(), user.getName());
+        accountEvents.passwordChanged(user);
 
         log.info("Password reset completed for user id {}", user.getId());
     }

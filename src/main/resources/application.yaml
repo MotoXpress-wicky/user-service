@@ -12,6 +12,13 @@ spring:
       # Flyway creates the tables. Hibernate only checks that they match the entities.
       ddl-auto: validate
 
+  rabbitmq:
+    template:
+      # Sending an event is tried 3 times before it is given up.
+      retry:
+        enabled: true
+        max-attempts: 3
+        initial-interval: 500ms
 
   mail:
     host: smtp.gmail.com
@@ -84,6 +91,14 @@ app:
   password-reset:
     token-ttl-minutes: 30
     resend-cooldown-seconds: 60
+
+# RabbitMQ events published by this service (docs/mvp/07-events.md).
+# The names are settings, so another project can rename them without changing Java.
+events:
+  exchange: app.events
+  registered: user.registered
+  password-reset: user.password.reset
+  password-changed: user.password.changed
 
 rate-limit:
   enabled: true

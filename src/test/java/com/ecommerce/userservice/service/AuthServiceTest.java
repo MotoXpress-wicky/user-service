@@ -4,6 +4,7 @@ import com.ecommerce.userservice.dto.LoginRequest;
 import com.ecommerce.userservice.dto.RegisterRequestDto;
 import com.ecommerce.userservice.entity.Role;
 import com.ecommerce.userservice.entity.User;
+import com.ecommerce.userservice.event.AccountEvents;
 import com.ecommerce.userservice.exception.UserAlreadyExistsException;
 import com.ecommerce.userservice.exception.UserEmailNotFoundException;
 import com.ecommerce.userservice.repository.UserRepository;
@@ -53,6 +54,9 @@ class AuthServiceTest {
     @Mock
     private RefreshTokenService refreshTokenService;
 
+    @Mock
+    private AccountEvents accountEvents;
+
     @InjectMocks
     private AuthService authService;
 
@@ -86,6 +90,8 @@ class AuthServiceTest {
         assertThat(saved.getEmail()).isEqualTo("nimal@example.com");
         assertThat(saved.getName()).isEqualTo("Nimal Perera");
         assertThat(result).isEqualTo("User registered successfully");
+        // The welcome email is not sent here. An event is published and notification-service sends it.
+        verify(accountEvents).registered(saved);
     }
 
     /*

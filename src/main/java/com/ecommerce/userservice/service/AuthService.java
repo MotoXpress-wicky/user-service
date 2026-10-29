@@ -5,6 +5,7 @@ import com.ecommerce.userservice.dto.LoginRequest;
 import com.ecommerce.userservice.dto.RegisterRequestDto;
 import com.ecommerce.userservice.entity.AuthProvider;
 import com.ecommerce.userservice.entity.User;
+import com.ecommerce.userservice.event.AccountEvents;
 import com.ecommerce.userservice.exception.OAuthAccountException;
 import com.ecommerce.userservice.exception.UserAlreadyExistsException;
 import com.ecommerce.userservice.exception.UserEmailNotFoundException;
@@ -27,15 +28,17 @@ public class AuthService {
     private final UserRepository userRepository;
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenService refreshTokenService;
+    private final AccountEvents accountEvents;
 
 
     @Autowired
-    public AuthService(JwtUtil jwtUtil, PasswordEncoder passwordEncoder, UserRepository userRepository, AuthenticationManager authenticationManager, RefreshTokenService refreshTokenService, RateLimitService rateLimitService) {
+    public AuthService(JwtUtil jwtUtil, PasswordEncoder passwordEncoder, UserRepository userRepository, AuthenticationManager authenticationManager, RefreshTokenService refreshTokenService, RateLimitService rateLimitService, AccountEvents accountEvents) {
         this.authenticationManager = authenticationManager;
         this.jwtUtil = jwtUtil;
         this.passwordEncoder = passwordEncoder;
         this.userRepository = userRepository;
         this.refreshTokenService = refreshTokenService;
+        this.accountEvents = accountEvents;
     }
 
     public String register(RegisterRequestDto data) {
@@ -50,6 +53,7 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+        accountEvents.registered(user);
 
         return "User registered successfully";
     }

@@ -4,6 +4,7 @@ import com.ecommerce.userservice.entity.AuthProvider;
 import com.ecommerce.userservice.entity.PasswordResetToken;
 import com.ecommerce.userservice.entity.Role;
 import com.ecommerce.userservice.entity.User;
+import com.ecommerce.userservice.event.AccountEvents;
 import com.ecommerce.userservice.exception.InvalidPasswordResetTokenException;
 import com.ecommerce.userservice.repository.PasswordResetTokenRepository;
 import com.ecommerce.userservice.repository.RefreshTokenRepository;
@@ -69,7 +70,7 @@ class PasswordResetServiceTest {
     private PasswordEncoder passwordEncoder;
 
     @Mock
-    private EmailService emailService;
+    private AccountEvents accountEvents;
 
     @InjectMocks
     private PasswordResetService passwordResetService;
@@ -109,8 +110,7 @@ class PasswordResetServiceTest {
         passwordResetService.sendPasswordResetEmail("nimal@example.com");
 
         verify(tokenRepository).save(tokenCaptor.capture());
-        verify(emailService).sendPasswordResetEmail(
-                eq("nimal@example.com"), eq("Nimal Perera"), linkCaptor.capture(), eq(30L));
+        verify(accountEvents).passwordReset(eq(user), linkCaptor.capture(), eq(30L));
 
         String emailedLink = linkCaptor.getValue();
         String rawToken = emailedLink.substring(emailedLink.indexOf("token=") + "token=".length());
@@ -158,7 +158,7 @@ class PasswordResetServiceTest {
                 .doesNotThrowAnyException();
 
         verify(tokenRepository, never()).save(any(PasswordResetToken.class));
-        verifyNoInteractions(emailService);
+        verifyNoInteractions(accountEvents);
     }
 
     /*
@@ -176,7 +176,7 @@ class PasswordResetServiceTest {
         passwordResetService.sendPasswordResetEmail("amara@example.com");
 
         verify(tokenRepository, never()).save(any(PasswordResetToken.class));
-        verifyNoInteractions(emailService);
+        verifyNoInteractions(accountEvents);
     }
 
     /*
@@ -195,7 +195,7 @@ class PasswordResetServiceTest {
         passwordResetService.sendPasswordResetEmail("nimal@example.com");
 
         verify(tokenRepository, never()).save(any(PasswordResetToken.class));
-        verifyNoInteractions(emailService);
+        verifyNoInteractions(accountEvents);
     }
 
     /*
@@ -223,12 +223,7 @@ class PasswordResetServiceTest {
         passwordResetService.sendPasswordResetEmail("nimal@example.com");
 
         verify(tokenRepository).save(any(PasswordResetToken.class));
-        verify(emailService).sendPasswordResetEmail(
-                anyString(),
-                anyString(),
-                anyString(),
-                anyLong()
-        );
+        verify(accountEvents).passwordReset(any(User.class), anyString(), anyLong());
     }
 
 // ---------------------------------------------------------------------
@@ -377,9 +372,8 @@ class PasswordResetServiceTest {
 
         verify(refreshTokenRepository).revokeAllForUser(eq(9L), any(Instant.class));
 
-        // Check that the password-changed email is sent to the correct user.
-        verify(emailService)
-                .sendPasswordChangedEmail("nimal@example.com", "Nimal Perera");
+        // Check that the password-changed event is published for the correct user.
+        verify(accountEvents).passwordChanged(user);
     }
 
     /*
@@ -400,7 +394,7 @@ class PasswordResetServiceTest {
 
         verify(userRepository, never()).save(any(User.class));
         verifyNoInteractions(passwordEncoder);
-        verifyNoInteractions(emailService);
+        verifyNoInteractions(accountEvents);
     }
 
     /*
@@ -419,7 +413,7 @@ class PasswordResetServiceTest {
                 .isInstanceOf(InvalidPasswordResetTokenException.class);
 
         verify(userRepository, never()).save(any(User.class));
-        verifyNoInteractions(emailService);
+        verifyNoInteractions(accountEvents);
     }
 
     // ---------------------------------------------------------------------

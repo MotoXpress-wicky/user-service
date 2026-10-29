@@ -3,6 +3,7 @@ package com.ecommerce.userservice.config.handler;
 
 import com.ecommerce.userservice.entity.AuthProvider;
 import com.ecommerce.userservice.entity.User;
+import com.ecommerce.userservice.event.AccountEvents;
 import com.ecommerce.userservice.repository.UserRepository;
 import com.ecommerce.userservice.service.AuthCookieService;
 import com.ecommerce.userservice.service.RefreshCookieService;
@@ -36,6 +37,7 @@ public class GoogleOidcAuthenticationSuccessHandler implements AuthenticationSuc
     private final AuthCookieService authCookieService;
     private final RefreshCookieService refreshCookieService;
     private final RefreshTokenService refreshTokenService;
+    private final AccountEvents accountEvents;
 
     @Value("${frontend.success-redirect-url}")
     private String frontendRedirectUrl;
@@ -45,12 +47,14 @@ public class GoogleOidcAuthenticationSuccessHandler implements AuthenticationSuc
             , JwtUtil jwtUtil
             , AuthCookieService authCookieService
             , RefreshCookieService refreshCookieService
-            , RefreshTokenService refreshTokenService) {
+            , RefreshTokenService refreshTokenService
+            , AccountEvents accountEvents) {
         this.userRepository = userRepository;
         this.jwtUtil = jwtUtil;
         this.authCookieService = authCookieService;
         this.refreshCookieService = refreshCookieService;
         this.refreshTokenService = refreshTokenService;
+        this.accountEvents = accountEvents;
     }
 
 
@@ -74,7 +78,9 @@ public class GoogleOidcAuthenticationSuccessHandler implements AuthenticationSuc
                     .email(email)
                     .authProvider(AuthProvider.GOOGLE)
                     .build();
-            return userRepository.save(newUser);
+            User saved = userRepository.save(newUser);
+            accountEvents.registered(saved);
+            return saved;
         });
 
         if (user.isLocked()) {

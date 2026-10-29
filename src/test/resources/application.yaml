@@ -59,6 +59,14 @@ spring:
               - profile
             redirectUri: "{baseUrl}/login/oauth2/code/{registrationId}"
 
+# RabbitMQ events published by this service (docs/mvp/07-events.md).
+# The names are settings, so another project can rename them without changing Java.
+events:
+  exchange: app.events
+  registered: user.registered
+  password-reset: user.password.reset
+  password-changed: user.password.changed
+
 auth:
   token:
     # HMAC-SHA256 needs at least 32 bytes of key material. Obviously fake.
