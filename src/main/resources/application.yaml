@@ -9,7 +9,8 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update      # TODO: change to none in production
+      # Flyway creates the tables. Hibernate only checks that they match the entities.
+      ddl-auto: validate
 
 
   mail:

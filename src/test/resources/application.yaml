@@ -16,7 +16,7 @@ spring:
   # In-memory rather than the file-backed H2 your main config uses, so tests
   # never touch ./db/user-service and never leak state between runs.
   datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
@@ -28,7 +28,8 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
-      ddl-auto: create-drop
+      # Flyway builds the tables from the real SQL file. Hibernate only checks them.
+      ddl-auto: validate
     show-sql: false
 
   # EmailService is mocked in every test here, so nothing is ever sent. These

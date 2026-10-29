@@ -173,4 +173,5 @@ local.properties
 .scala_dependencies
 .worksheet
 
-db
+# Local database folder in the project root only. src/main/resources/db/migration must stay tracked.
+/db/
