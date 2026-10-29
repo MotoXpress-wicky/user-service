@@ -32,20 +32,6 @@ spring:
       ddl-auto: validate
     show-sql: false
 
-  # EmailService is mocked in every test here, so nothing is ever sent. These
-  # values exist purely so the mail auto-configuration can start.
-  mail:
-    host: localhost
-    port: 3025
-    username: test
-    password: test
-    properties:
-      mail:
-        smtp:
-          auth: false
-          starttls:
-            enable: false
-
   security:
     oauth2:
       client:
@@ -104,8 +90,6 @@ cors:
   allowed-origins: "http://localhost"
 
 app:
-  mail:
-    from-name: "MotoXpress"
   frontend:
     reset-password-url: "http://localhost/reset-password"
   password-reset:
