@@ -2,6 +2,7 @@ package com.ecommerce.userservice.config.security;
 
 import com.ecommerce.userservice.config.filter.RateLimitFilter;
 import org.springframework.web.filter.CorsFilter;
+import com.ecommerce.userservice.config.handler.ApiAccessDeniedHandler;
 import com.ecommerce.userservice.config.handler.ApiAuthenticationEntryPoint;
 import com.ecommerce.userservice.config.handler.GoogleOidcAuthenticationFailureHandler;
 import com.ecommerce.userservice.config.handler.GoogleOidcAuthenticationSuccessHandler;
@@ -29,6 +30,7 @@ public class SecurityConfig {
     private final GoogleOidcAuthenticationFailureHandler googleOidcAuthenticationFailureHandler;
     private final ApiAuthenticationEntryPoint apiAuthenticationEntryPoint;
     private final RateLimitFilter rateLimitFilter;
+    private final ApiAccessDeniedHandler apiAccessDeniedHandler;
 
     @Autowired
     public SecurityConfig(
@@ -36,13 +38,15 @@ public class SecurityConfig {
             GoogleOidcAuthenticationSuccessHandler googleOidcAuthenticationSuccessHandler,
             GoogleOidcAuthenticationFailureHandler googleOidcAuthenticationFailureHandler,
             ApiAuthenticationEntryPoint apiAuthenticationEntryPoint,
-            RateLimitFilter rateLimitFilter) {
+            RateLimitFilter rateLimitFilter,
+            ApiAccessDeniedHandler apiAccessDeniedHandler) {
 
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.googleOidcAuthenticationSuccessHandler = googleOidcAuthenticationSuccessHandler;
         this.googleOidcAuthenticationFailureHandler = googleOidcAuthenticationFailureHandler;
         this.apiAuthenticationEntryPoint = apiAuthenticationEntryPoint;
         this.rateLimitFilter = rateLimitFilter;
+        this.apiAccessDeniedHandler = apiAccessDeniedHandler;
     }
 
 
@@ -78,6 +82,8 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .exceptionHandling(exception -> exception
+                        // a logged-in user without the needed role gets the shared error JSON (403)
+                        .accessDeniedHandler(apiAccessDeniedHandler)
                         .defaultAuthenticationEntryPointFor(
                                /* When authenticationEntryPoint is triggered:
                                   1. Request to PROTECTED route (requires authentication)
@@ -96,6 +102,8 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/h2-console/**").permitAll()
+                        // Admin URLs: only ROLE_ADMIN. Every admin controller sits under this path.
+                        .requestMatchers("/api/v1/user/admin/**").hasRole("ADMIN")
                         .requestMatchers(
                                 "/api/v1/user/auth/login"
                                 , "/api/v1/user/auth/register"

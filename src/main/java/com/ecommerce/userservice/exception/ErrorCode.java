@@ -34,6 +34,11 @@ public enum ErrorCode {
     OAUTH_ACCOUNT_EXISTS("This email is registered with another sign-in method."),
     DATA_CONFLICT("This request conflicts with existing data."),
 
+    ADMIN_RULE_VIOLATION("This change is not allowed."),
+
+    // ---------- not found (HTTP 404) ----------
+    NOT_FOUND("The requested item was not found."),
+
     // ---------- other ----------
     RATE_LIMITED("Too many requests. Please try again later."),
     INTERNAL_ERROR("Something went wrong. Please try again later.");
