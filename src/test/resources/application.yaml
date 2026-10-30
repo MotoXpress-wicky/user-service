@@ -52,6 +52,8 @@ events:
   registered: user.registered
   password-reset: user.password.reset
   password-changed: user.password.changed
+  outbox:
+    enabled: false         # no background job during a test
 
 # No first admin is created during tests, unless a test sets these.
 admin:
