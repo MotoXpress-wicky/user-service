@@ -72,7 +72,6 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .cors(Customizer.withDefaults())
-                .headers(headers -> headers.frameOptions(frame -> frame.disable()))
                 // 1. Disable CSRF (not needed for stateless REST APIs using JWT)
                 .csrf(csrf -> csrf.disable())
                 // 2. Disable form-based login
