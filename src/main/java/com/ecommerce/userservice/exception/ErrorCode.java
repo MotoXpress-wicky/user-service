@@ -41,6 +41,8 @@ public enum ErrorCode {
 
     // ---------- other ----------
     RATE_LIMITED("Too many requests. Please try again later."),
+    METHOD_NOT_ALLOWED("This method is not allowed on this address."),
+    UNSUPPORTED_MEDIA_TYPE("This content type is not supported."),
     INTERNAL_ERROR("Something went wrong. Please try again later.");
 
     /** Name of the request attribute the JWT filter uses to pass a code to the entry point. */
