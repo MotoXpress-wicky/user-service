@@ -45,7 +45,7 @@ auth:
     name: access_token
     path: /
     ttl-minutes: 20160      # 14 days
-    secure: false
+    secure: ${COOKIE_SECURE:false}   # true on a server with HTTPS: the browser then never sends the cookie over plain HTTP
     same-site: Lax
 
 refresh:
@@ -55,7 +55,7 @@ refresh:
     name: refresh_token
     path: /api/v1/user/auth
     ttl-minutes: 20160          # 14 days
-    secure: false
+    secure: ${COOKIE_SECURE:false}   # true on a server with HTTPS: the browser then never sends the cookie over plain HTTP
     same-site: Lax
 
 frontend:

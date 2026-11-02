@@ -45,6 +45,7 @@ The names of the events are settings (`events.*`).
 | `auth.token.secret` | `JWT_SECRET` | Signs the login cookie. The other services use the same value for now (M39) |
 | `admin.bootstrap.*` | `ADMIN_BOOTSTRAP_EMAIL`, `_PASSWORD`, `_NAME` | The first admin |
 | `captcha.*` | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile |
+| `auth.cookie.secure`, `refresh.cookie.secure` | `COOKIE_SECURE` | `true` when the sites are served over HTTPS: the login cookies then get the `Secure` flag. Default `false` (local, plain HTTP) |
 | `rate-limit.*` (with `rate-limit.redis.*`) | `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` | Tries per IP and email |
 | `spring.security.oauth2.client.*` | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | "Continue with Google" |
 | `spring.rabbitmq.*` | `SPRING_RABBITMQ_HOST`, `_PORT`, `_USERNAME`, `_PASSWORD` | RabbitMQ |
