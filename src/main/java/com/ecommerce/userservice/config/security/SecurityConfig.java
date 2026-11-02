@@ -100,7 +100,6 @@ public class SecurityConfig {
                         .failureHandler(googleOidcAuthenticationFailureHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/h2-console/**").permitAll()
                         // Admin URLs: only ROLE_ADMIN. Every admin controller sits under this path.
                         .requestMatchers("/api/v1/user/admin/**").hasRole("ADMIN")
                         .requestMatchers(
