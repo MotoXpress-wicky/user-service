@@ -100,6 +100,8 @@ public class SecurityConfig {
                         .failureHandler(googleOidcAuthenticationFailureHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // The health check of Docker and Kubernetes. It shows only UP or DOWN (no details).
+                        .requestMatchers("/actuator/health/**").permitAll()
                         // Admin URLs: only ROLE_ADMIN. Every admin controller sits under this path.
                         .requestMatchers("/api/v1/user/admin/**").hasRole("ADMIN")
                         .requestMatchers(

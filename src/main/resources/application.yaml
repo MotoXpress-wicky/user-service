@@ -82,6 +82,21 @@ admin:
     password: ${ADMIN_BOOTSTRAP_PASSWORD:}
     name: ${ADMIN_BOOTSTRAP_NAME:Administrator}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health      # only health, nothing else is shown
+  health:
+    # The service works without RabbitMQ (events wait in the outbox, M46). A broker that is down must not make the
+    # service "DOWN", or a health check would restart a healthy service.
+    rabbit:
+      enabled: false
+  endpoint:
+    health:
+      probes:
+        enabled: true        # /actuator/health/liveness and /actuator/health/readiness
+
 logging:
   pattern:
     # traceId = the X-Request-Id that Nginx adds to every request

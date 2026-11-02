@@ -64,6 +64,12 @@ admin:
     password: ""
     name: Administrator
 
+management:
+  health:
+    # RabbitMQ does not run during unit tests.
+    rabbit:
+      enabled: false
+
 auth:
   token:
     # HMAC-SHA256 needs at least 32 bytes of key material. Obviously fake.
