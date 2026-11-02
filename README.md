@@ -21,6 +21,9 @@ This service is **domain-free**: the words order, product, part, vehicle, cart a
 | PATCH | `/api/v1/user/admin/users/{id}` | `{"locked": true}` and/or `{"admin": true}`. You cannot change yourself | ROLE_ADMIN |
 | GET | `/api/v1/user/admin/audit-log` | Who did what to which account | ROLE_ADMIN |
 
+Health check for Docker and Kubernetes: `GET /actuator/health` (and `/health/liveness`, `/health/readiness`), open to everyone,
+only UP or DOWN. Nothing else of the actuator is exposed. RabbitMQ is not part of it (the outbox keeps the service working).
+
 Every error uses the one shared JSON: `timestamp, status, code, message, path, refreshable, details`.
 
 ## First admin
